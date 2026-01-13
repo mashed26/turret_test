@@ -16,6 +16,7 @@ import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.GravityTypeValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import edu.wpi.first.epilogue.Logged;
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.ArmFeedforward;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.util.Units;
@@ -32,7 +33,7 @@ public class TurretSubsytem extends SubsystemBase {
 
   // Constants
   private final DCMotor dcMotor = DCMotor.getKrakenX60(1);
-  private final int canID = 1;
+  private final int canID = 15;
   private final double gearRatio = 13.2;
   private final double kP = 1;
   private final double kI = 0;
@@ -48,6 +49,9 @@ public class TurretSubsytem extends SubsystemBase {
   private final double statorCurrentLimit = 40;
   private final boolean enableSupplyLimit = false;
   private final double supplyCurrentLimit = 40;
+
+  private final static double minRotDeg = -360;
+  private final static double maxRotDeg = 360;
 
   // Feedforward
   private final ArmFeedforward feedforward =
@@ -308,6 +312,58 @@ public class TurretSubsytem extends SubsystemBase {
     return runOnce(() -> setAngle(angleDegrees));
   }
 
+  // Normalizes the input angle to the range of [-360, 360]
+  // Allows to find shorter angles to travel faster.
+  private double normalizeAngle(double angle) {
+    while (angle > 180) angle -= 360;
+    while (angle < -180) angle += 360;
+    return angle;
+}
+
+// Does the actual check to ensure that angle is within bounds
+// and will not damage any parts of the turret.
+private boolean isWithinLimits(double angle) {
+    return angle >= minRotDeg && angle <= minRotDeg;
+}
+
+private double getSafeTargetAngle(double requestedAngle) {
+    double current = getPositionDegrees();
+
+    // shortest circular difference
+    double delta = normalizeAngle(requestedAngle - current);
+
+    // two possible paths
+    double pathCW  = delta > 0 ? delta - 360 : delta;
+    double pathCCW = delta < 0 ? delta + 360 : delta;
+
+    double endCW  = current + pathCW;
+    double endCCW = current + pathCCW;
+
+    boolean cwValid  = isWithinLimits(endCW);
+    boolean ccwValid = isWithinLimits(endCCW);
+
+    double chosenDelta;
+
+    if (cwValid && ccwValid) {
+        chosenDelta = Math.abs(pathCW) < Math.abs(pathCCW)
+                ? pathCW
+                : pathCCW;
+    } else if (cwValid) {
+        chosenDelta = pathCW;
+    } else if (ccwValid) {
+        chosenDelta = pathCCW;
+    } else {
+        // No legal path — clamp to nearest limit
+        return MathUtil.clamp(requestedAngle, minRotDeg, maxRotDeg);
+    }
+
+    return MathUtil.clamp(
+        current + chosenDelta,
+        minRotDeg,
+        maxRotDeg
+    );
+}
+
   /**
    * Creates a command to move the pivot to a specific angle with a profile.
    *
@@ -316,8 +372,11 @@ public class TurretSubsytem extends SubsystemBase {
    */
   public Command moveToAngleCommand(double angleDegrees) {
     return run(() -> {
+          double safeTarget = getSafeTargetAngle(angleDegrees);
+
           double currentAngle = getPositionDegrees();
-          double error = angleDegrees - currentAngle;
+          double error = safeTarget - currentAngle;
+
           double velocityDegPerSec =
               Math.signum(error)
                   * Math.min(Math.abs(error) * 2.0, Units.radiansToDegrees(maxVelocity));
@@ -325,8 +384,11 @@ public class TurretSubsytem extends SubsystemBase {
         })
         .until(
             () -> {
+              // Calculates the shortest safe path to get to the target.
+              double safeTarget = getSafeTargetAngle(angleDegrees);
               double currentAngle = getPositionDegrees();
-              return Math.abs(angleDegrees - currentAngle) < 2.0; // 2 degree tolerance
+              
+              return Math.abs(safeTarget - currentAngle) < 2.0; // 2 degree tolerance
             })
         .finallyDo(interrupted -> setVelocity(0));
   }
