@@ -45,14 +45,12 @@ public class RobotContainer {
     public final Vision vision;
 
     private final double HEIGHT = 0; //TODO: Find Height of bobot
-    private double angleToAprilTag = 0;
 
     private double targetDegrees = 0;
 
     public RobotContainer() {
         configureBindings();
         vision = new Vision();
-        angleToAprilTag = vision.getAngleToTarget();
     }
 
     private void configureBindings() {
