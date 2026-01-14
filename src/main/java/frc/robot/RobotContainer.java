@@ -7,23 +7,22 @@ package frc.robot;
 import static edu.wpi.first.units.Units.*;
 
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
-
-import dev.doglog.DogLog;
-
+import com.teamscreamrobotics.physics.Trajectory;
+import com.teamscreamrobotics.physics.Trajectory.GamePiece;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
-import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
-import frc.robot.subsystems.Turret.TurretSubsytem;
+import frc.robot.subsystems.turret.TurretSubsytem;
+import frc.robot.subsystems.vision.Vision;
 
 public class RobotContainer {
     private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
@@ -43,10 +42,17 @@ public class RobotContainer {
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
     public final TurretSubsytem turret = new TurretSubsytem();
 
+    public final Vision vision;
+
+    private final double HEIGHT = 0; //TODO: Find Height of bobot
+    private double angleToAprilTag = 0;
+
     private double targetDegrees = 0;
 
     public RobotContainer() {
         configureBindings();
+        vision = new Vision();
+        angleToAprilTag = vision.getAngleToTarget();
     }
 
     private void configureBindings() {
@@ -87,11 +93,22 @@ public class RobotContainer {
         joystick.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
         
         drivetrain.registerTelemetry(logger::telemeterize);
+
+        turret.setDefaultCommand(turret.moveToAngleCommand(vision.getAngleToTarget()));
     }
 
     public void periodic() {
         SmartDashboard.putNumber("Pose", turret.getPosition());
         SmartDashboard.putNumber("targetPose", targetDegrees);
+
+        Trajectory.configure()
+            .setGamePiece(GamePiece.FUEL)
+            .setInitialHeight(HEIGHT)
+            .setShotVelocity(5)
+            .setTargetDistance(vision.getDistanceToTarget())
+            .setTargetHeight(Trajectory.HUB_HEIGHT);
+
+        System.out.println("Est. Trajectory Angle is: " + Trajectory.getOptimalAngle());
 
         if (joystick.povUp().getAsBoolean()) {
             targetDegrees += 10;
@@ -99,7 +116,7 @@ public class RobotContainer {
             targetDegrees -= 10;
         }
 
-        joystick.povLeft().whileTrue(turret.moveToAngleCommand(targetDegrees));
+        //joystick.povLeft().whileTrue(turret.moveToAngleCommand(targetDegrees));
     }
 
     public Command getAutonomousCommand() {
