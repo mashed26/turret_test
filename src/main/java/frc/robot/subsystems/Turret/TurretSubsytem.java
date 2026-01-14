@@ -1,4 +1,4 @@
-package frc.robot.subsystems.Turret;
+package frc.robot.subsystems.turret;
 
 import static edu.wpi.first.units.Units.Radians;
 import static edu.wpi.first.units.Units.RadiansPerSecond;
@@ -15,9 +15,9 @@ import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.GravityTypeValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
+
 import edu.wpi.first.epilogue.Logged;
 import edu.wpi.first.math.MathUtil;
-import edu.wpi.first.math.controller.ArmFeedforward;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.*;
@@ -42,7 +42,6 @@ public class TurretSubsytem extends SubsystemBase {
   private final double kV = .1;
   private final double kA = 0;
   private final double maxVelocity = 10; // rad/s
-//  private final double maxAcceleration = 5; // rad/s²
   private final boolean brakeMode = true;
   private final boolean enableStatorLimit = true;
   private final double statorCurrentLimit = 40;
@@ -51,15 +50,6 @@ public class TurretSubsytem extends SubsystemBase {
 
   private final static double minRotDeg = -360;
   private final static double maxRotDeg = 360;
-
-  // Feedforward
-  private final ArmFeedforward feedforward =
-      new ArmFeedforward(
-          kS, // kS
-          0, // kG - Pivot doesn't need gravity compensation
-          kV, // kV
-          kA // kA
-          );
 
   // Motor controller
   private final TalonFX motor;
@@ -253,7 +243,6 @@ public class TurretSubsytem extends SubsystemBase {
     double angleRadians = Units.degreesToRadians(angleDegrees);
     double positionRotations = angleRadians / (2.0 * Math.PI);
 
-    double ffVolts = feedforward.calculate(getVelocity(), acceleration);
     // motor.setControl(positionRequest.withPosition(positionRotations).withFeedForward(ffVolts));
     motor.setControl(positionRequest.withPosition(positionRotations));
   }
@@ -278,7 +267,6 @@ public class TurretSubsytem extends SubsystemBase {
     double velocityRadPerSec = Units.degreesToRadians(velocityDegPerSec);
     double velocityRotations = velocityRadPerSec / (2.0 * Math.PI);
 
-    double ffVolts = feedforward.calculate(getVelocity(), acceleration);
     // motor.setControl(velocityRequest.withVelocity(velocityRotations).withFeedForward(ffVolts));
     motor.setControl(velocityRequest.withVelocity(velocityRotations));
   }
