@@ -33,17 +33,16 @@ public class TurretSubsytem extends SubsystemBase {
 
   // Constants
   private final DCMotor dcMotor = DCMotor.getKrakenX60(1);
-  private final int canID = 15;
+  private final int canID = 8;
   private final double gearRatio = 13.2;
-  private final double kP = 1;
-  private final double kI = 0;
+  private final double kP = 2;
+  private final double kI = .1;
   private final double kD = 0;
   private final double kS = 0;
-  private final double kV = 0;
+  private final double kV = .1;
   private final double kA = 0;
-  private final double kG = 0; // Unused for pivots
-  private final double maxVelocity = 1; // rad/s
-  private final double maxAcceleration = 1; // rad/s²
+  private final double maxVelocity = 10; // rad/s
+//  private final double maxAcceleration = 5; // rad/s²
   private final boolean brakeMode = true;
   private final boolean enableStatorLimit = true;
   private final double statorCurrentLimit = 40;
@@ -114,8 +113,8 @@ public class TurretSubsytem extends SubsystemBase {
     config.MotorOutput.NeutralMode = brakeMode ? NeutralModeValue.Brake : NeutralModeValue.Coast;
     
     // Set motor rotation limits
-    config.SoftwareLimitSwitch.withForwardSoftLimitThreshold(200.0);
-    config.SoftwareLimitSwitch.withReverseSoftLimitThreshold(200.0);
+    config.SoftwareLimitSwitch.withForwardSoftLimitThreshold(.95);
+    config.SoftwareLimitSwitch.withReverseSoftLimitThreshold(-.95);
     config.SoftwareLimitSwitch.withForwardSoftLimitEnable(true);
     config.SoftwareLimitSwitch.withReverseSoftLimitEnable(true);
 
@@ -323,7 +322,7 @@ public class TurretSubsytem extends SubsystemBase {
 // Does the actual check to ensure that angle is within bounds
 // and will not damage any parts of the turret.
 private boolean isWithinLimits(double angle) {
-    return angle >= minRotDeg && angle <= minRotDeg;
+    return angle >= minRotDeg && angle <= maxRotDeg;
 }
 
 private double getSafeTargetAngle(double requestedAngle) {
@@ -372,7 +371,10 @@ private double getSafeTargetAngle(double requestedAngle) {
    */
   public Command moveToAngleCommand(double angleDegrees) {
     return run(() -> {
+          System.out.println("I AM RUNNING");
+          System.out.println(angleDegrees);
           double safeTarget = getSafeTargetAngle(angleDegrees);
+          System.out.println(safeTarget);
 
           double currentAngle = getPositionDegrees();
           double error = safeTarget - currentAngle;

@@ -7,11 +7,16 @@ package frc.robot;
 import static edu.wpi.first.units.Units.*;
 
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
+
+import dev.doglog.DogLog;
+
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
@@ -37,6 +42,8 @@ public class RobotContainer {
 
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
     public final TurretSubsytem turret = new TurretSubsytem();
+
+    private double targetDegrees = 0;
 
     public RobotContainer() {
         configureBindings();
@@ -66,6 +73,8 @@ public class RobotContainer {
             point.withModuleDirection(new Rotation2d(-joystick.getLeftY(), -joystick.getLeftX()))
         ));
 
+        joystick.rightTrigger().onTrue(turret.moveToAngleCommand(90));
+        joystick.leftTrigger().onTrue(turret.moveToAngleCommand(-90));
 
         // Run SysId routines when holding back/start and X/Y.
         // Note that each routine should be run exactly once in a single log.
@@ -73,11 +82,24 @@ public class RobotContainer {
         joystick.back().and(joystick.x()).whileTrue(drivetrain.sysIdDynamic(Direction.kReverse));
         joystick.start().and(joystick.y()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
         joystick.start().and(joystick.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
-
+        
         // reset the field-centric heading on left bumper press
         joystick.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
-
+        
         drivetrain.registerTelemetry(logger::telemeterize);
+    }
+
+    public void periodic() {
+        SmartDashboard.putNumber("Pose", turret.getPosition());
+        SmartDashboard.putNumber("targetPose", targetDegrees);
+
+        if (joystick.povUp().getAsBoolean()) {
+            targetDegrees += 10;
+        } else if (joystick.povDown().getAsBoolean()) {
+            targetDegrees -= 10;
+        }
+
+        joystick.povLeft().whileTrue(turret.moveToAngleCommand(targetDegrees));
     }
 
     public Command getAutonomousCommand() {
