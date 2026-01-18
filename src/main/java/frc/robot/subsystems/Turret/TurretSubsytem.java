@@ -5,6 +5,8 @@ import static edu.wpi.first.units.Units.RadiansPerSecond;
 import static edu.wpi.first.units.Units.Rotations;
 import static edu.wpi.first.units.Units.RotationsPerSecond;
 
+import java.util.function.Supplier;
+
 import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.configs.CurrentLimitsConfigs;
@@ -12,12 +14,14 @@ import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.PositionVoltage;
 import com.ctre.phoenix6.controls.VelocityVoltage;
+import com.ctre.phoenix6.hardware.CANcoder;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.GravityTypeValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 
 import edu.wpi.first.epilogue.Logged;
 import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.*;
@@ -33,14 +37,16 @@ public class TurretSubsytem extends SubsystemBase {
 
   // Constants
   private final DCMotor dcMotor = DCMotor.getKrakenX60(1);
+  private final CANcoder innerEncoder = new CANcoder(5);
+  private final CANcoder outerEncoder = new CANcoder(4);
   private final int canID = 8;
   private final double gearRatio = 13.2;
-   private final double kP = 4.0;
-  private final double kI = 0.0;
-  private final double kD = 0.2;
-  private final double kS = 0.1;
-  private final double kV = 0.12;
-  private final double kA = 0.01;
+  private final double kP = 3;
+  private final double kI = .1;
+  private final double kD = 0;
+  private final double kS = 0;
+  private final double kV = .1;
+  private final double kA = 0;
   private final double maxVelocity = 10; // rad/s
   private final boolean brakeMode = true;
   private final boolean enableStatorLimit = true;
@@ -60,14 +66,25 @@ public class TurretSubsytem extends SubsystemBase {
   private final StatusSignal<Voltage> voltageSignal;
   private final StatusSignal<Current> statorCurrentSignal;
   private final StatusSignal<Temperature> temperatureSignal;
+  
+  private Supplier<Pose2d> robotPose;
+
+  // Double Encoder Variables
+  private static final double GEAR_0_TOOTH_COUNT = 132.0;
+  private static final double GEAR_1_TOOTH_COUNT = 28.0;
+  private static final double GEAR_2_TOOTH_COUNT = 26.0;
+      private static final double SLOPE = (GEAR_2_TOOTH_COUNT * GEAR_1_TOOTH_COUNT)
+            / ((GEAR_1_TOOTH_COUNT - GEAR_2_TOOTH_COUNT) * GEAR_0_TOOTH_COUNT);
 
   // Simulation
   private final SingleJointedArmSim pivotSim;
 
   /** Creates a new Pivot Subsystem. */
-  public TurretSubsytem() {
+  public TurretSubsytem(Supplier<Pose2d> pose) {
     // Initialize motor controller
     motor = new TalonFX(canID);
+
+    this.robotPose = pose;
 
     // Create control requests
     positionRequest = new PositionVoltage(0).withSlot(0);
@@ -299,6 +316,27 @@ public class TurretSubsytem extends SubsystemBase {
     return runOnce(() -> setAngle(angleDegrees));
   }
 
+      public static double calculateTurretAngleFromCANCoderDegrees(double e1, double e2) {
+        double difference = e2 - e1;
+        if (difference > 250) {
+            difference -= 360;
+        }
+        if (difference < -250) {
+            difference += 360;
+        }
+        difference *= SLOPE;
+
+        double e1Rotations = (difference * GEAR_0_TOOTH_COUNT / GEAR_1_TOOTH_COUNT) / 360.0;
+        double e1RotationsFloored = Math.floor(e1Rotations);
+        double turretAngle = (e1RotationsFloored * 360.0 + e1) * (GEAR_1_TOOTH_COUNT / GEAR_0_TOOTH_COUNT);
+        if (turretAngle - difference < -100) {
+            turretAngle += GEAR_1_TOOTH_COUNT / GEAR_0_TOOTH_COUNT * 360.0;
+        } else if (turretAngle - difference > 100) {
+            turretAngle -= GEAR_1_TOOTH_COUNT / GEAR_0_TOOTH_COUNT * 360.0;
+        }
+        return turretAngle;
+    }
+
   // Normalizes the input angle to the range of [-360, 360]
   // Allows to find shorter angles to travel faster.
   private double normalizeAngle(double angle) {
@@ -357,15 +395,16 @@ private double getSafeTargetAngle(double requestedAngle) {
    * @param angleDegrees The target angle in degrees
    * @return A command that moves the pivot to the specified angle
    */
-  public Command moveToAngleCommand(double angleDegrees) {
+// This is the robot relative verion of this command.
+  public Command moveToAngleCommandRR(double angleDegrees) {
     return run(() -> {
-          System.out.println("I AM RUNNING");
           System.out.println(angleDegrees);
           double safeTarget = getSafeTargetAngle(angleDegrees);
           System.out.println(safeTarget);
 
           double currentAngle = getPositionDegrees();
           double error = safeTarget - currentAngle;
+          
 
           double velocityDegPerSec =
               Math.signum(error)
@@ -377,6 +416,35 @@ private double getSafeTargetAngle(double requestedAngle) {
               // Calculates the shortest safe path to get to the target.
               double safeTarget = getSafeTargetAngle(angleDegrees);
               double currentAngle = getPositionDegrees();
+              
+              return Math.abs(safeTarget - currentAngle) < 2.0; // 2 degree tolerance
+            })
+        .finallyDo(interrupted -> setVelocity(0));
+  }
+// This is the field relative version of this command.
+    public Command moveToAngleCommandFR(double angleDegrees) {
+    return run(() -> {
+          System.out.println(angleDegrees);
+          double robotHeading = robotPose.get().getRotation().getDegrees();
+          double safeTarget = getSafeTargetAngle(angleDegrees + (-robotHeading));
+          System.out.println(safeTarget);
+
+          double currentAngle = getPositionDegrees();
+          double error = safeTarget - currentAngle;
+          
+
+          double velocityDegPerSec =
+              Math.signum(error)
+                  * Math.min(Math.abs(error) * 2.0, Units.radiansToDegrees(maxVelocity));
+          setVelocity(velocityDegPerSec);
+        })
+        .until(
+            () -> {
+              // Calculates the shortest safe path to get to the target.
+              double robotHeading = robotPose.get().getRotation().getDegrees();
+              double safeTarget = getSafeTargetAngle(angleDegrees + (-robotHeading));
+              double currentAngle = getPositionDegrees();
+              System.out.println(safeTarget);
               
               return Math.abs(safeTarget - currentAngle) < 2.0; // 2 degree tolerance
             })

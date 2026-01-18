@@ -6,11 +6,14 @@ package frc.robot;
 
 import static edu.wpi.first.units.Units.*;
 
+import java.util.function.Supplier;
+
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.teamscreamrobotics.physics.Trajectory;
 import com.teamscreamrobotics.physics.Trajectory.GamePiece;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
+import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -39,7 +42,7 @@ public class RobotContainer {
     private final CommandXboxController joystick = new CommandXboxController(0);
 
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
-    public final TurretSubsytem turret = new TurretSubsytem();
+    public final TurretSubsytem turret = new TurretSubsytem(() -> drivetrain.getState().Pose);
     public final Vision vision = new Vision(() -> drivetrain.getState().Pose);
 
     private final double HEIGHT = 0; // TODO: Find height of robot
@@ -73,13 +76,13 @@ public class RobotContainer {
         ));
 
         // FIXED: Turret preset positions - use onTrue instead of whileTrue
-        joystick.rightTrigger().onTrue(turret.moveToAngleCommand(90));
-        joystick.leftTrigger().onTrue(turret.moveToAngleCommand(-90));
+        joystick.rightTrigger().onTrue(turret.moveToAngleCommandFR(90));
+        joystick.leftTrigger().onTrue(turret.moveToAngleCommandFR(-90));
 
         // FIXED: Vision tracking - use whileTrue with trackAngleCommand
-        joystick.y().whileTrue(
-            turret.trackAngleCommand(() -> vision.getDesiredAngle())
-        );
+        // joystick.y().whileTrue(
+        //     turret.trackAngleCommand(() -> vision.getDesiredAngle())
+        // );
 
         // Manual turret control with right stick Y-axis
         joystick.rightBumper().whileTrue(
@@ -89,8 +92,8 @@ public class RobotContainer {
         // POV controls for incremental angle adjustment
         joystick.povUp().onTrue(Commands.runOnce(() -> targetDegrees += 10));
         joystick.povDown().onTrue(Commands.runOnce(() -> targetDegrees -= 10));
-        joystick.povLeft().onTrue(turret.moveToAngleCommand(targetDegrees));
-        joystick.povRight().onTrue(turret.moveToAngleCommand(0)); // Reset to forward
+        joystick.povLeft().onTrue(turret.moveToAngleCommandRR(targetDegrees));
+        joystick.povRight().onTrue(turret.moveToAngleCommandRR(0)); // Reset to forward
 
         // SysId routines
         joystick.back().and(joystick.y()).whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
@@ -103,6 +106,8 @@ public class RobotContainer {
         
         drivetrain.registerTelemetry(logger::telemeterize);
     }
+
+    Supplier<Pose2d> robotPose = () -> drivetrain.getState().Pose;
 
     public void periodic() {
         // Update vision subsystem with current turret angle
@@ -120,6 +125,8 @@ public class RobotContainer {
         SmartDashboard.putNumber("Vision/Distance", vision.getDistanceToTarget());
 
         //turret.trackAngleCommand(() -> vision.getDesiredAngle());
+
+        SmartDashboard.putNumber("RobotHeading", robotPose.get().getRotation().getDegrees());
 
         // Trajectory calculations
         if (vision.hasTarget()) {
