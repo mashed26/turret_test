@@ -1,47 +1,50 @@
 package frc.robot.subsystems.vision;
 
-import java.util.List;
-import java.util.Optional;
-
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Pose3d;
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Translation3d;
+import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
-import org.photonvision.PhotonCamera;
-import org.photonvision.targeting.PhotonPipelineResult;
-import org.photonvision.targeting.PhotonTrackedTarget;
+
+import com.teamscreamrobotics.data.Length;
+import com.teamscreamrobotics.vision.LimelightVision;
+import com.teamscreamrobotics.vision.LimelightVision.Limelight;
+import com.teamscreamrobotics.vision.LimelightHelpers;
+
+import java.util.function.Supplier;
 
 public class Vision extends SubsystemBase {
-    private final PhotonCamera limelight;
+    private final Limelight limelight;
     private final int TARGET_APRILTAG_ID = 9;
     
-    // Transform from turret base to camera (adjust based on your robot's measurements)
-    private final Transform3d TURRET_TO_CAMERA = new Transform3d(
-        new Translation3d(0.3, 0.0, 0.5),  // x, y, z in meters
-        new Rotation3d(0.0, 0.0, 0.0)      // roll, pitch, yaw in radians
+    // Camera position relative to turret base
+    private final Pose3d CAMERA_RELATIVE_POSITION = new Pose3d(
+        new Translation3d(Length.fromFeet(7).getMeters(), 0.0, 0.5),  // x, y, z in meters
+        new Rotation3d(0.0, 0.785398163, 0.0)      // roll, pitch, yaw in radians
     );
     
     private double currentTurretAngle = 0.0; // Current turret angle in degrees
-    private PhotonPipelineResult latestResult = null;
+    private Supplier<Pose2d> robotPoseSupplier;
     
-    public Vision() {
-        // Initialize PhotonVision camera with the name configured in PhotonVision
-        limelight = new PhotonCamera("limelight-turret");
+    public Vision(Supplier<Pose2d> robotPoseSupplier) {
+        // Initialize Limelight with name and relative position
+        limelight = new Limelight("limelight-turret", CAMERA_RELATIVE_POSITION);
+        this.robotPoseSupplier = robotPoseSupplier;
         
-        limelight.setPipelineIndex(0);
+        // Set the priority tag to our target AprilTag
+        LimelightVision.setPriorityTagID(TARGET_APRILTAG_ID, limelight);
     }
     
     @Override
     public void periodic() {
-        // Get all unread results and use the most recent one
-        List<PhotonPipelineResult> results = limelight.getAllUnreadResults();
-        
-        // Update latestResult if we have new data
-        if (!results.isEmpty()) {
-            // The last result in the list is the most recent
-            latestResult = results.get(results.size() - 1);
-        }
+        // No need to manually fetch results - LimelightHelpers handles this
+
+        SmartDashboard.putNumber("angle", getDesiredAngle());
     }
     
     public void setTurretAngle(double angle) {
@@ -53,117 +56,152 @@ public class Vision extends SubsystemBase {
     }
     
     public boolean hasTarget() {
-        if (latestResult == null || !latestResult.hasTargets()) {
-            return false;
-        }
-        
-        return latestResult.getTargets().stream()
-            .anyMatch(target -> target.getFiducialId() == TARGET_APRILTAG_ID);
+        return LimelightVision.getTV(limelight);
     }
     
-    private Optional<PhotonTrackedTarget> getTarget() {
+    /**
+     * Get the desired turret angle to point at the AprilTag
+     * Use this with turret.moveToAngleCommand(vision.getDesiredAngle())
+     */
+    public double getDesiredAngle() {
         if (!hasTarget()) {
-            return Optional.empty();
+            return currentTurretAngle; // Hold current position if no target
         }
         
-        return latestResult.getTargets().stream()
-            .filter(target -> target.getFiducialId() == TARGET_APRILTAG_ID)
-            .findFirst();
+        // Get robot pose
+        Pose2d robotPose = robotPoseSupplier.get();
+        
+        // Get target position in robot space
+        Pose3d targetPoseRobotSpace = LimelightHelpers.getTargetPose3d_RobotSpace(limelight.name());
+        
+        // Project to 2D
+        Translation2d targetPositionRobotSpace = new Translation2d(
+            targetPoseRobotSpace.getX(),
+            targetPoseRobotSpace.getY()
+        );
+        
+        // Calculate angle from robot center to target
+        double angleToTargetRadians = Math.atan2(
+            targetPositionRobotSpace.getY(),
+            targetPositionRobotSpace.getX()
+        );
+        double angleToTargetDegrees = Math.toDegrees(angleToTargetRadians);
+        
+        // The turret angle is relative to the robot's forward direction
+        return angleToTargetDegrees;
+    }
+    
+    /**
+     * Get the field-relative position of the AprilTag target
+     */
+    public Pose2d getTargetFieldPosition() {
+        if (!hasTarget()) {
+            return null;
+        }
+        
+        // Get the robot's current pose
+        Pose2d robotPose = robotPoseSupplier.get();
+        
+        // Get target pose in robot space from Limelight
+        Pose3d targetPoseRobotSpace = LimelightHelpers.getTargetPose3d_RobotSpace(limelight.name());
+        
+        // Convert to 2D and transform to field coordinates
+        Translation2d targetTranslation = new Translation2d(
+            targetPoseRobotSpace.getX(),
+            targetPoseRobotSpace.getY()
+        );
+        
+        // Rotate by robot heading and add to robot position
+        Translation2d targetFieldTranslation = targetTranslation
+            .rotateBy(robotPose.getRotation())
+            .plus(robotPose.getTranslation());
+        
+        // Get target rotation (yaw only for 2D)
+        double targetYaw = targetPoseRobotSpace.getRotation().getZ();
+        Rotation2d targetRotation = robotPose.getRotation().plus(Rotation2d.fromRadians(targetYaw));
+        
+        return new Pose2d(targetFieldTranslation, targetRotation);
+    }
+    
+    /**
+     * Get the error between current turret angle and desired angle
+     */
+    public double getTurretAngleError() {
+        if (!hasTarget()) {
+            return 0.0;
+        }
+        
+        double desiredAngle = getDesiredAngle();
+        double error = desiredAngle - currentTurretAngle;
+        
+        // Normalize to -180 to 180 degrees
+        while (error > 180) error -= 360;
+        while (error < -180) error += 360;
+        
+        return error;
+    }
+    
+    /**
+     * Check if the turret is aimed at the target (within tolerance)
+     */
+    public boolean isTurretAimed(double toleranceDegrees) {
+        return hasTarget() && Math.abs(getTurretAngleError()) < toleranceDegrees;
     }
     
     public double getDistanceToTarget() {
-        Optional<PhotonTrackedTarget> target = getTarget();
-        
-        if (target.isEmpty()) {
+        if (!hasTarget()) {
             return -1.0;
         }
         
-        Transform3d cameraToTarget = target.get().getBestCameraToTarget();
+        // Get 3D position of target in robot space
+        Pose3d targetPose = LimelightHelpers.getTargetPose3d_RobotSpace(limelight.name());
+        Translation3d targetPos = targetPose.getTranslation();
         
         // Calculate 2D distance (ignoring vertical component)
-        double x = cameraToTarget.getX();
-        double y = cameraToTarget.getY();
+        double x = targetPos.getX();
+        double y = targetPos.getY();
         
         return Math.sqrt(x * x + y * y);
     }
     
     public double get3DDistanceToTarget() {
-        Optional<PhotonTrackedTarget> target = getTarget();
-        
-        if (target.isEmpty()) {
+        if (!hasTarget()) {
             return -1.0;
         }
         
-        Transform3d cameraToTarget = target.get().getBestCameraToTarget();
-        
-        // Calculate 3D distance
-        double x = cameraToTarget.getX();
-        double y = cameraToTarget.getY();
-        double z = cameraToTarget.getZ();
-        
-        return Math.sqrt(x * x + y * y + z * z);
+        return LimelightVision.get3D_DistanceToTarget(limelight).getMeters();
     }
     
+    /**
+     * Get the angle from the robot to the target (robot-relative)
+     */
     public double getAngleToTarget() {
-        Optional<PhotonTrackedTarget> target = getTarget();
-        
-        if (target.isEmpty()) {
-            return 0.0;
-        }
-        
-        Transform3d cameraToTarget = target.get().getBestCameraToTarget();
-        
-        // Get target position relative to camera
-        double targetX = cameraToTarget.getX();
-        double targetY = cameraToTarget.getY();
-        
-        // Account for camera offset from turret center
-        double adjustedX = targetX - TURRET_TO_CAMERA.getX();
-        double adjustedY = targetY - TURRET_TO_CAMERA.getY();
-        
-        // Calculate angle in degrees
-        // atan2(y, x) gives angle where 0° is forward (+X axis)
-        double angleRadians = Math.atan2(adjustedY, adjustedX);
-        double angleDegrees = Math.toDegrees(angleRadians);
-        
-        return angleDegrees;
+        return getDesiredAngle();
     }
     
-    public double getRequiredTurretAngle() {
-        double relativeAngle = getAngleToTarget();
-        
+    public Translation2d getTargetPositionRelativeToRobot() {
         if (!hasTarget()) {
-            return currentTurretAngle;
-        }
-        
-        // Add the relative angle to current turret angle
-        return currentTurretAngle + relativeAngle;
-    }
-    
-    public Translation2d getTargetPositionRelativeToTurret() {
-        Optional<PhotonTrackedTarget> target = getTarget();
-        
-        if (target.isEmpty()) {
             return null;
         }
         
-        Transform3d cameraToTarget = target.get().getBestCameraToTarget();
+        // Get target position in robot space
+        Pose3d targetPose = LimelightHelpers.getTargetPose3d_RobotSpace(limelight.name());
         
-        // Transform from camera coordinates to turret base coordinates
-        double x = cameraToTarget.getX() - TURRET_TO_CAMERA.getX();
-        double y = cameraToTarget.getY() - TURRET_TO_CAMERA.getY();
-        
-        return new Translation2d(x, y);
+        return new Translation2d(targetPose.getX(), targetPose.getY());
     }
     
     public double getTargetYaw() {
-        Optional<PhotonTrackedTarget> target = getTarget();
-        return target.map(PhotonTrackedTarget::getYaw).orElse(0.0);
+        if (!hasTarget()) {
+            return 0.0;
+        }
+        return LimelightVision.getTX(limelight);
     }
     
     public double getTargetPitch() {
-        Optional<PhotonTrackedTarget> target = getTarget();
-        return target.map(PhotonTrackedTarget::getPitch).orElse(0.0);
+        if (!hasTarget()) {
+            return 0.0;
+        }
+        return LimelightVision.getTY(limelight);
     }
     
     public String getTrackingInfo() {
@@ -172,10 +210,11 @@ public class Vision extends SubsystemBase {
         }
         
         return String.format(
-            "Target #9 | Distance: %.2fm | Angle: %.1f° | Required Turret: %.1f°",
+            "Target #9 | Distance: %.2fm | Current: %.1f° | Desired: %.1f° | Error: %.1f°",
             getDistanceToTarget(),
-            getAngleToTarget(),
-            getRequiredTurretAngle()
+            currentTurretAngle,
+            getDesiredAngle(),
+            getTurretAngleError()
         );
     }
     
@@ -183,19 +222,37 @@ public class Vision extends SubsystemBase {
      * Get the timestamp of the latest result (useful for latency compensation)
      */
     public double getLatestTimestamp() {
-        if (latestResult == null) {
-            return 0.0;
-        }
-        return latestResult.getTimestampSeconds();
+        // Calculate timestamp by subtracting latency from current time
+        double latencySeconds = LimelightVision.getLatency(limelight) / 1000.0;
+        return Timer.getFPGATimestamp() - latencySeconds;
     }
     
     /**
      * Check how old the latest data is (in seconds)
      */
     public double getDataAge() {
-        if (latestResult == null) {
-            return Double.MAX_VALUE;
-        }
-        return edu.wpi.first.wpilibj.Timer.getFPGATimestamp() - latestResult.getTimestampSeconds();
+        // Limelight latency represents how old the data is
+        return LimelightVision.getLatency(limelight) / 1000.0;
+    }
+    
+    /**
+     * Set LED mode for the Limelight
+     */
+    public void setLEDMode(LimelightVision.LEDMode mode) {
+        LimelightVision.setLEDMode(mode, limelight);
+    }
+    
+    /**
+     * Set the pipeline index
+     */
+    public void setPipeline(int index) {
+        LimelightVision.setPipeline(index, limelight);
+    }
+    
+    /**
+     * Get the current pipeline index
+     */
+    public int getCurrentPipeline() {
+        return LimelightVision.getCurrentPipeline(limelight);
     }
 }

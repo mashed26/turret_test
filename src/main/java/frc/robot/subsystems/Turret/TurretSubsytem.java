@@ -35,12 +35,12 @@ public class TurretSubsytem extends SubsystemBase {
   private final DCMotor dcMotor = DCMotor.getKrakenX60(1);
   private final int canID = 8;
   private final double gearRatio = 13.2;
-  private final double kP = 2;
-  private final double kI = .1;
-  private final double kD = 0;
-  private final double kS = 0;
-  private final double kV = .1;
-  private final double kA = 0;
+   private final double kP = 4.0;
+  private final double kI = 0.0;
+  private final double kD = 0.2;
+  private final double kS = 0.1;
+  private final double kV = 0.12;
+  private final double kA = 0.01;
   private final double maxVelocity = 10; // rad/s
   private final boolean brakeMode = true;
   private final boolean enableStatorLimit = true;
@@ -400,5 +400,72 @@ private double getSafeTargetAngle(double requestedAngle) {
    */
   public Command moveAtVelocityCommand(double velocityDegPerSec) {
     return run(() -> setVelocity(velocityDegPerSec));
+  }
+
+  // ========== ADDED METHODS ==========
+
+  /**
+   * ADDED: Alternative command using position control instead of velocity control.
+   * This uses the TalonFX's built-in PID controller to reach the target.
+   * 
+   * @param angleDegrees The target angle in degrees
+   * @return A command that moves to the angle using position control
+   */
+  public Command moveToAnglePositionCommand(double angleDegrees) {
+    return runOnce(() -> {
+      double safeTarget = getSafeTargetAngle(angleDegrees);
+      setAngle(safeTarget);
+    }).andThen(run(() -> {
+      // Keep checking if we've reached the target
+    })).until(() -> {
+      double safeTarget = getSafeTargetAngle(angleDegrees);
+      return Math.abs(safeTarget - getPositionDegrees()) < 2.0;
+    }).withName("MoveToAnglePosition:" + angleDegrees);
+  }
+
+  /**
+   * ADDED: Command for continuous vision tracking.
+   * Updates the target angle every loop cycle.
+   *
+   * @param angleSupplier Supplier that provides the desired angle (e.g., from vision)
+   * @return A command that continuously tracks the angle
+   */
+  public Command trackAngleCommand(java.util.function.DoubleSupplier angleSupplier) {
+    return run(() -> {
+      double targetAngle = angleSupplier.getAsDouble();
+      double safeTarget = getSafeTargetAngle(targetAngle);
+      setAngle(safeTarget);
+    }).withName("TrackAngle");
+  }
+
+  /**
+   * ADDED: Command for manual control with joystick input.
+   *
+   * @param speedSupplier Supplier providing speed from -1.0 to 1.0
+   * @return A command for manual turret control
+   */
+  public Command manualControlCommand(java.util.function.DoubleSupplier speedSupplier) {
+    return run(() -> {
+      double speed = speedSupplier.getAsDouble();
+      setVelocity(speed * Units.radiansToDegrees(maxVelocity));
+    }).withName("ManualControl");
+  }
+
+  /**
+   * ADDED: Stop the motor completely.
+   */
+  public void stop() {
+    motor.stopMotor();
+  }
+
+  /**
+   * ADDED: Check if turret is at the target angle within tolerance.
+   * 
+   * @param targetDegrees The target angle to check against
+   * @return True if within 2 degrees of target
+   */
+  public boolean atTarget(double targetDegrees) {
+    double safeTarget = getSafeTargetAngle(targetDegrees);
+    return Math.abs(safeTarget - getPositionDegrees()) < 2.0;
   }
 }

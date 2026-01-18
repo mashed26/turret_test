@@ -25,13 +25,12 @@ import frc.robot.subsystems.turret.TurretSubsytem;
 import frc.robot.subsystems.vision.Vision;
 
 public class RobotContainer {
-    private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
-    private double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond); // 3/4 of a rotation per second max angular velocity
+    private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond);
+    private double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond);
 
-    /* Setting up bindings for necessary control of the swerve drive platform */
     private final SwerveRequest.FieldCentric drive = new SwerveRequest.FieldCentric()
-            .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1) // Add a 10% deadband
-            .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors
+            .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1)
+            .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
     private final SwerveRequest.SwerveDriveBrake brake = new SwerveRequest.SwerveDriveBrake();
     private final SwerveRequest.PointWheelsAt point = new SwerveRequest.PointWheelsAt();
 
@@ -41,83 +40,104 @@ public class RobotContainer {
 
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
     public final TurretSubsytem turret = new TurretSubsytem();
+    public final Vision vision = new Vision(() -> drivetrain.getState().Pose);
 
-    public final Vision vision;
-
-    private final double HEIGHT = 0; //TODO: Find Height of bobot
+    private final double HEIGHT = 0; // TODO: Find height of robot
 
     private double targetDegrees = 0;
 
     public RobotContainer() {
         configureBindings();
-        vision = new Vision();
     }
 
     private void configureBindings() {
-        // Note that X is defined as forward according to WPILib convention,
-        // and Y is defined as to the left according to WPILib convention.
+        // Default swerve drive command
         drivetrain.setDefaultCommand(
-            // Drivetrain will execute this command periodically
             drivetrain.applyRequest(() ->
-                drive.withVelocityX(Math.pow(joystick.getLeftY(), 2) * Math.signum(-joystick.getLeftY()) * MaxSpeed) // Drive forward with negative Y (forward)
-                    .withVelocityY(Math.pow(joystick.getLeftX(), 2) * Math.signum(-joystick.getLeftX()) * MaxSpeed) // Drive left with negative X (left)
-                    .withRotationalRate(-Math.pow(joystick.getRightX(), 3) * MaxAngularRate) // Drive counterclockwise with negative X (left)
+                drive.withVelocityX(Math.pow(joystick.getLeftY(), 2) * Math.signum(-joystick.getLeftY()) * MaxSpeed)
+                    .withVelocityY(Math.pow(joystick.getLeftX(), 2) * Math.signum(-joystick.getLeftX()) * MaxSpeed)
+                    .withRotationalRate(-Math.pow(joystick.getRightX(), 3) * MaxAngularRate)
             )
         );
 
-        // Idle while the robot is disabled. This ensures the configured
-        // neutral mode is applied to the drive motors while disabled.
+        // Idle while disabled
         final var idle = new SwerveRequest.Idle();
         RobotModeTriggers.disabled().whileTrue(
             drivetrain.applyRequest(() -> idle).ignoringDisable(true)
         );
 
+        // Swerve control
         joystick.a().whileTrue(drivetrain.applyRequest(() -> brake));
         joystick.b().whileTrue(drivetrain.applyRequest(() ->
             point.withModuleDirection(new Rotation2d(-joystick.getLeftY(), -joystick.getLeftX()))
         ));
 
+        // FIXED: Turret preset positions - use onTrue instead of whileTrue
         joystick.rightTrigger().onTrue(turret.moveToAngleCommand(90));
         joystick.leftTrigger().onTrue(turret.moveToAngleCommand(-90));
 
-        // Run SysId routines when holding back/start and X/Y.
-        // Note that each routine should be run exactly once in a single log.
+        // FIXED: Vision tracking - use whileTrue with trackAngleCommand
+        joystick.y().whileTrue(
+            turret.trackAngleCommand(() -> vision.getDesiredAngle())
+        );
+
+        // Manual turret control with right stick Y-axis
+        joystick.rightBumper().whileTrue(
+            turret.manualControlCommand(() -> -joystick.getRightY())
+        );
+
+        // POV controls for incremental angle adjustment
+        joystick.povUp().onTrue(Commands.runOnce(() -> targetDegrees += 10));
+        joystick.povDown().onTrue(Commands.runOnce(() -> targetDegrees -= 10));
+        joystick.povLeft().onTrue(turret.moveToAngleCommand(targetDegrees));
+        joystick.povRight().onTrue(turret.moveToAngleCommand(0)); // Reset to forward
+
+        // SysId routines
         joystick.back().and(joystick.y()).whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
         joystick.back().and(joystick.x()).whileTrue(drivetrain.sysIdDynamic(Direction.kReverse));
         joystick.start().and(joystick.y()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
         joystick.start().and(joystick.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
         
-        // reset the field-centric heading on left bumper press
+        // Reset field-centric heading
         joystick.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
         
         drivetrain.registerTelemetry(logger::telemeterize);
-
-        turret.setDefaultCommand(turret.moveToAngleCommand(vision.getAngleToTarget()));
     }
 
     public void periodic() {
-        SmartDashboard.putNumber("Pose", turret.getPosition());
-        SmartDashboard.putNumber("targetPose", targetDegrees);
+        // Update vision subsystem with current turret angle
+        vision.setTurretAngle(turret.getPositionDegrees());
 
-        Trajectory.configure()
-            .setGamePiece(GamePiece.FUEL)
-            .setInitialHeight(HEIGHT)
-            .setShotVelocity(5)
-            .setTargetDistance(vision.getDistanceToTarget())
-            .setTargetHeight(Trajectory.HUB_HEIGHT);
+        // SmartDashboard telemetry
+        SmartDashboard.putNumber("Turret/Position", turret.getPositionDegrees());
+        SmartDashboard.putNumber("Turret/Velocity", turret.getVelocity());
+        SmartDashboard.putNumber("Turret/Current", turret.getCurrent());
+        SmartDashboard.putNumber("Turret/Target", targetDegrees);
+        
+        SmartDashboard.putString("Vision/Info", vision.getTrackingInfo());
+        SmartDashboard.putNumber("Vision/DesiredAngle", vision.getDesiredAngle());
+        SmartDashboard.putBoolean("Vision/HasTarget", vision.hasTarget());
+        SmartDashboard.putNumber("Vision/Distance", vision.getDistanceToTarget());
 
-        System.out.println("Est. Trajectory Angle is: " + Trajectory.getOptimalAngle());
+        //turret.trackAngleCommand(() -> vision.getDesiredAngle());
 
-        if (joystick.povUp().getAsBoolean()) {
-            targetDegrees += 10;
-        } else if (joystick.povDown().getAsBoolean()) {
-            targetDegrees -= 10;
+        // Trajectory calculations
+        if (vision.hasTarget()) {
+            Trajectory.configure()
+                .setGamePiece(GamePiece.FUEL)
+                .setInitialHeight(HEIGHT)
+                .setShotVelocity(5)
+                .setTargetDistance(vision.getDistanceToTarget())
+                .setTargetHeight(Trajectory.HUB_HEIGHT);
+
+            SmartDashboard.putNumber("Trajectory/OptimalAngle", Trajectory.getOptimalAngle());
         }
-
-        //joystick.povLeft().whileTrue(turret.moveToAngleCommand(targetDegrees));
     }
 
     public Command getAutonomousCommand() {
-        return Commands.print("No autonomous command configured");
+        // Example auto command: Track target for 5 seconds
+        return turret.trackAngleCommand(() -> vision.getDesiredAngle())
+            .withTimeout(5.0)
+            .andThen(turret.stopCommand());
     }
 }
