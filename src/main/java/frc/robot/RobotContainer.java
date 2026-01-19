@@ -36,6 +36,11 @@ public class RobotContainer {
             .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
     private final SwerveRequest.SwerveDriveBrake brake = new SwerveRequest.SwerveDriveBrake();
     private final SwerveRequest.PointWheelsAt point = new SwerveRequest.PointWheelsAt();
+    
+    // Request for rotating to a specific angle
+    private final SwerveRequest.FieldCentricFacingAngle fieldCentricFacingAngle = new SwerveRequest.FieldCentricFacingAngle()
+            .withDeadband(MaxSpeed * 0.1)
+            .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
 
     private final Telemetry logger = new Telemetry(MaxSpeed);
 
@@ -51,6 +56,35 @@ public class RobotContainer {
 
     public RobotContainer() {
         configureBindings();
+    }
+
+    private double getNearest45DegreeAngle(double currentDegrees) {
+        while (currentDegrees > 180) currentDegrees -= 360;
+        while (currentDegrees < -180) currentDegrees += 360;
+        
+        double rounded = Math.round(currentDegrees / 45.0) * 45.0;
+        
+        while (rounded > 180) rounded -= 360;
+        while (rounded < -180) rounded += 360;
+        
+        return rounded;
+    }
+
+    private Command snapTo45Degrees() {
+        return Commands.runOnce(() -> {
+            double currentAngle = drivetrain.getState().Pose.getRotation().getDegrees();
+            double targetAngle = getNearest45DegreeAngle(currentAngle);
+            SmartDashboard.putNumber("Snap/TargetAngle", targetAngle);
+        }).andThen(
+            drivetrain.applyRequest(() -> 
+                fieldCentricFacingAngle
+                    .withVelocityX(-joystick.getLeftY() * MaxSpeed)
+                    .withVelocityY(-joystick.getLeftX() * MaxSpeed)
+                    .withTargetDirection(Rotation2d.fromDegrees(
+                        getNearest45DegreeAngle(drivetrain.getState().Pose.getRotation().getDegrees())
+                    ))
+            )
+        );
     }
 
     private void configureBindings() {
@@ -75,16 +109,11 @@ public class RobotContainer {
             point.withModuleDirection(new Rotation2d(-joystick.getLeftY(), -joystick.getLeftX()))
         ));
 
-        // FIXED: Turret preset positions - use onTrue instead of whileTrue
+        joystick.y().whileTrue(snapTo45Degrees());
+
         joystick.rightTrigger().onTrue(turret.moveToAngleCommandFR(270));
         joystick.leftTrigger().onTrue(turret.moveToAngleCommandFR(-270));
 
-        // FIXED: Vision tracking - use whileTrue with trackAngleCommand
-        // joystick.y().whileTrue(
-        //     turret.trackAngleCommand(() -> vision.getDesiredAngle())
-        // );
-
-        // Manual turret control with right stick Y-axis
         joystick.rightBumper().whileTrue(
             turret.manualControlCommand(() -> -joystick.getRightY())
         );
@@ -124,9 +153,8 @@ public class RobotContainer {
         SmartDashboard.putBoolean("Vision/HasTarget", vision.hasTarget());
         SmartDashboard.putNumber("Vision/Distance", vision.getDistanceToTarget());
 
-        //turret.trackAngleCommand(() -> vision.getDesiredAngle());
-
         SmartDashboard.putNumber("RobotHeading", robotPose.get().getRotation().getDegrees());
+        SmartDashboard.putNumber("Snap/Nearest45", getNearest45DegreeAngle(robotPose.get().getRotation().getDegrees()));
 
         // Trajectory calculations
         if (vision.hasTarget()) {

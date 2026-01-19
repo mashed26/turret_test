@@ -1,6 +1,5 @@
 package frc.robot.subsystems.turret;
 
-import static edu.wpi.first.units.Units.Degrees;
 import static edu.wpi.first.units.Units.Radians;
 import static edu.wpi.first.units.Units.RadiansPerSecond;
 import static edu.wpi.first.units.Units.Rotations;
@@ -22,7 +21,6 @@ import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.GravityTypeValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import com.ctre.phoenix6.signals.SensorDirectionValue;
-import com.fasterxml.jackson.databind.deser.impl.InnerClassProperty;
 
 import edu.wpi.first.epilogue.Logged;
 import edu.wpi.first.math.MathUtil;
@@ -358,7 +356,6 @@ public class TurretSubsytem extends SubsystemBase {
 
       public static double calculateTurretAngleFromCANCoderDegrees(double e1, double e2) {
         double difference = e2 - e1;
-        double differenceV2 = e2 - e1;
         SmartDashboard.putNumber("e1 turret", e1);
         SmartDashboard.putNumber("e2 turret", e2);
         SmartDashboard.putNumber("OG Diff", difference);
