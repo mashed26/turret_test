@@ -1,5 +1,6 @@
 package frc.robot.subsystems.turret;
 
+import static edu.wpi.first.units.Units.Degrees;
 import static edu.wpi.first.units.Units.Radians;
 import static edu.wpi.first.units.Units.RadiansPerSecond;
 import static edu.wpi.first.units.Units.Rotations;
@@ -9,7 +10,9 @@ import java.util.function.Supplier;
 
 import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.StatusSignal;
+import com.ctre.phoenix6.configs.CANcoderConfiguration;
 import com.ctre.phoenix6.configs.CurrentLimitsConfigs;
+import com.ctre.phoenix6.configs.MotionMagicConfigs;
 import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.PositionVoltage;
@@ -18,6 +21,8 @@ import com.ctre.phoenix6.hardware.CANcoder;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.GravityTypeValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
+import com.ctre.phoenix6.signals.SensorDirectionValue;
+import com.fasterxml.jackson.databind.deser.impl.InnerClassProperty;
 
 import edu.wpi.first.epilogue.Logged;
 import edu.wpi.first.math.MathUtil;
@@ -28,6 +33,7 @@ import edu.wpi.first.units.measure.*;
 import edu.wpi.first.wpilibj.simulation.BatterySim;
 import edu.wpi.first.wpilibj.simulation.RoboRioSim;
 import edu.wpi.first.wpilibj.simulation.SingleJointedArmSim;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
@@ -37,21 +43,22 @@ public class TurretSubsytem extends SubsystemBase {
 
   // Constants
   private final DCMotor dcMotor = DCMotor.getKrakenX60(1);
-  private final CANcoder innerEncoder = new CANcoder(5);
-  private final CANcoder outerEncoder = new CANcoder(4);
+  private final CANcoder innerEncoder;
+  private final CANcoder outerEncoder;
   private final int canID = 8;
   private final double gearRatio = 13.2;
-  private final double kP = 3;
-  private final double kI = .1;
-  private final double kD = 0;
+  private final double kP = 5.5;
+  private final double kI = 0.0;
+  private final double kD = 0.05;
   private final double kS = 0;
   private final double kV = .1;
-  private final double kA = 0;
-  private final double maxVelocity = 10; // rad/s
+  private final double kA = 0.0;
+  private final double maxVelocity = 40; // rad/s
+  private final double maxAccel = 40;
   private final boolean brakeMode = true;
   private final boolean enableStatorLimit = true;
   private final double statorCurrentLimit = 40;
-  private final boolean enableSupplyLimit = false;
+  private final boolean enableSupplyLimit = true;
   private final double supplyCurrentLimit = 40;
 
   private final static double minRotDeg = -360;
@@ -71,10 +78,10 @@ public class TurretSubsytem extends SubsystemBase {
 
   // Double Encoder Variables
   private static final double GEAR_0_TOOTH_COUNT = 132.0;
-  private static final double GEAR_1_TOOTH_COUNT = 28.0;
-  private static final double GEAR_2_TOOTH_COUNT = 26.0;
-      private static final double SLOPE = (GEAR_2_TOOTH_COUNT * GEAR_1_TOOTH_COUNT)
-            / ((GEAR_1_TOOTH_COUNT - GEAR_2_TOOTH_COUNT) * GEAR_0_TOOTH_COUNT);
+  private static final double GEAR_1_TOOTH_COUNT = 25.0;
+  private static final double GEAR_2_TOOTH_COUNT = 24.0;
+  private static final double SLOPE = (GEAR_2_TOOTH_COUNT * GEAR_1_TOOTH_COUNT)
+    / ((GEAR_1_TOOTH_COUNT - GEAR_2_TOOTH_COUNT) * GEAR_0_TOOTH_COUNT);
 
   // Simulation
   private final SingleJointedArmSim pivotSim;
@@ -83,6 +90,11 @@ public class TurretSubsytem extends SubsystemBase {
   public TurretSubsytem(Supplier<Pose2d> pose) {
     // Initialize motor controller
     motor = new TalonFX(canID);
+    innerEncoder = new CANcoder(5);
+    outerEncoder = new CANcoder(4);
+
+
+
 
     this.robotPose = pose;
 
@@ -98,6 +110,20 @@ public class TurretSubsytem extends SubsystemBase {
     temperatureSignal = motor.getDeviceTemp();
 
     TalonFXConfiguration config = new TalonFXConfiguration();
+    MotionMagicConfigs magicConfigs = new MotionMagicConfigs();
+    CANcoderConfiguration innerCoderConfig = new CANcoderConfiguration();
+    CANcoderConfiguration outerCoderConfig = new CANcoderConfiguration();
+
+    innerCoderConfig.MagnetSensor.withAbsoluteSensorDiscontinuityPoint(1.0);
+    //innerCoderConfig.MagnetSensor.withMagnetOffset(-0.137939453125);
+    innerCoderConfig.MagnetSensor.SensorDirection = SensorDirectionValue.CounterClockwise_Positive;
+
+    outerCoderConfig.MagnetSensor.withAbsoluteSensorDiscontinuityPoint(1.0);
+    //outerCoderConfig.MagnetSensor.withMagnetOffset(-0.181884765625);
+    outerCoderConfig.MagnetSensor.SensorDirection = SensorDirectionValue.Clockwise_Positive;
+
+    innerEncoder.getConfigurator().apply(innerCoderConfig);
+    outerEncoder.getConfigurator().apply(outerCoderConfig);
 
     // Configure PID for slot 0
     Slot0Configs slot0 = config.Slot0;
@@ -108,6 +134,9 @@ public class TurretSubsytem extends SubsystemBase {
     slot0.kS = kS;
     slot0.kV = kV;
     slot0.kA = kA;
+
+    magicConfigs.MotionMagicAcceleration = 40.0;
+    magicConfigs.MotionMagicCruiseVelocity = 30.0;
 
     // Set current limits
     CurrentLimitsConfigs currentLimits = config.CurrentLimits;
@@ -130,6 +159,7 @@ public class TurretSubsytem extends SubsystemBase {
 
     // Apply configuration
     motor.getConfigurator().apply(config);
+    motor.getConfigurator().apply(magicConfigs);
 
     // Reset encoder position
     motor.setPosition(0);
@@ -153,6 +183,14 @@ public class TurretSubsytem extends SubsystemBase {
   public void periodic() {
     BaseStatusSignal.refreshAll(
         positionSignal, velocitySignal, voltageSignal, statorCurrentSignal, temperatureSignal);
+
+    //System.out.println("Turret Velocity: " + getVelocity());
+    SmartDashboard.putNumber("Turret Angle", calculateTurretAngleFromCANCoderDegrees(
+      Units.rotationsToDegrees(innerEncoder.getAbsolutePosition().getValueAsDouble()),
+       Units.rotationsToDegrees(outerEncoder.getAbsolutePosition().getValueAsDouble())));
+    SmartDashboard.putNumber("Turret Inner Encoder Angle", Units.rotationsToDegrees(innerEncoder.getAbsolutePosition().getValueAsDouble()));
+    SmartDashboard.putNumber("Turret Outer Encoder Angle", Units.rotationsToDegrees(outerEncoder.getAbsolutePosition().getValueAsDouble()));
+    SmartDashboard.putNumber("Turret Velocity", getVelocity());
   }
 
   /** Update simulation. */
@@ -270,7 +308,8 @@ public class TurretSubsytem extends SubsystemBase {
    * @param velocityDegPerSec The target velocity in degrees per second
    */
   public void setVelocity(double velocityDegPerSec) {
-    setVelocity(velocityDegPerSec, 0);
+    SmartDashboard.putNumber("Turret/velPerSec", velocityDegPerSec);
+    setVelocity(velocityDegPerSec, maxAccel);
   }
 
   /**
@@ -283,6 +322,7 @@ public class TurretSubsytem extends SubsystemBase {
     // Convert degrees/sec to rotations/sec
     double velocityRadPerSec = Units.degreesToRadians(velocityDegPerSec);
     double velocityRotations = velocityRadPerSec / (2.0 * Math.PI);
+    SmartDashboard.putNumber("Turret/velocityRotations", velocityRotations);
 
     // motor.setControl(velocityRequest.withVelocity(velocityRotations).withFeedForward(ffVolts));
     motor.setControl(velocityRequest.withVelocity(velocityRotations));
@@ -318,6 +358,11 @@ public class TurretSubsytem extends SubsystemBase {
 
       public static double calculateTurretAngleFromCANCoderDegrees(double e1, double e2) {
         double difference = e2 - e1;
+        double differenceV2 = e2 - e1;
+        SmartDashboard.putNumber("e1 turret", e1);
+        SmartDashboard.putNumber("e2 turret", e2);
+        SmartDashboard.putNumber("OG Diff", difference);
+       // System.out.println("OG Diff: " + differenceV2);
         if (difference > 250) {
             difference -= 360;
         }
@@ -327,8 +372,11 @@ public class TurretSubsytem extends SubsystemBase {
         difference *= SLOPE;
 
         double e1Rotations = (difference * GEAR_0_TOOTH_COUNT / GEAR_1_TOOTH_COUNT) / 360.0;
-        double e1RotationsFloored = Math.floor(e1Rotations);
-        double turretAngle = (e1RotationsFloored * 360.0 + e1) * (GEAR_1_TOOTH_COUNT / GEAR_0_TOOTH_COUNT);
+        // double e1RotationsFloored = Math.floor(e1Rotations);
+        double turretAngle = (e1Rotations * 360.0 + e1) * (GEAR_1_TOOTH_COUNT / GEAR_0_TOOTH_COUNT);
+        SmartDashboard.putNumber("e1 Rotations", e1Rotations);
+        SmartDashboard.putNumber("in method turret", turretAngle);
+        SmartDashboard.putNumber("BUNZ difference", difference);
         if (turretAngle - difference < -100) {
             turretAngle += GEAR_1_TOOTH_COUNT / GEAR_0_TOOTH_COUNT * 360.0;
         } else if (turretAngle - difference > 100) {
@@ -382,8 +430,9 @@ private double getSafeTargetAngle(double requestedAngle) {
         return MathUtil.clamp(requestedAngle, minRotDeg, maxRotDeg);
     }
 
+    SmartDashboard.putNumber("chosenDelta", chosenDelta);
     return MathUtil.clamp(
-        current + chosenDelta,
+        chosenDelta + current,
         minRotDeg,
         maxRotDeg
     );
@@ -398,7 +447,7 @@ private double getSafeTargetAngle(double requestedAngle) {
 // This is the robot relative verion of this command.
   public Command moveToAngleCommandRR(double angleDegrees) {
     return run(() -> {
-          System.out.println(angleDegrees);
+          //System.out.println(angleDegrees);
           double safeTarget = getSafeTargetAngle(angleDegrees);
           System.out.println(safeTarget);
 
@@ -424,29 +473,33 @@ private double getSafeTargetAngle(double requestedAngle) {
 // This is the field relative version of this command.
     public Command moveToAngleCommandFR(double angleDegrees) {
     return run(() -> {
-          System.out.println(angleDegrees);
+        //  System.out.println(angleDegrees);
           double robotHeading = robotPose.get().getRotation().getDegrees();
-          double safeTarget = getSafeTargetAngle(angleDegrees + (-robotHeading));
+          SmartDashboard.putNumber("Robot Heading", robotHeading);
+          double safeTarget = getSafeTargetAngle(angleDegrees + (robotHeading));
           System.out.println(safeTarget);
 
           double currentAngle = getPositionDegrees();
           double error = safeTarget - currentAngle;
           
+          SmartDashboard.putNumber("Turret/Safe Target", safeTarget);
+          SmartDashboard.putNumber("Turret/Current Angle", currentAngle);
 
           double velocityDegPerSec =
               Math.signum(error)
-                  * Math.min(Math.abs(error) * 2.0, Units.radiansToDegrees(maxVelocity));
+                  * Math.min(Math.abs(error) * 7.0, Units.radiansToDegrees(maxVelocity));
           setVelocity(velocityDegPerSec);
+          System.out.println("Turret Velocity DEG-PER-SEC: " + velocityDegPerSec);
         })
         .until(
             () -> {
               // Calculates the shortest safe path to get to the target.
               double robotHeading = robotPose.get().getRotation().getDegrees();
-              double safeTarget = getSafeTargetAngle(angleDegrees + (-robotHeading));
+              double safeTarget = getSafeTargetAngle(angleDegrees);
               double currentAngle = getPositionDegrees();
-              System.out.println(safeTarget);
+            //  System.out.println(safeTarget);
               
-              return Math.abs(safeTarget - currentAngle) < 2.0; // 2 degree tolerance
+              return Math.abs(safeTarget) < 2.0; // 2 degree tolerance
             })
         .finallyDo(interrupted -> setVelocity(0));
   }

@@ -76,8 +76,8 @@ public class RobotContainer {
         ));
 
         // FIXED: Turret preset positions - use onTrue instead of whileTrue
-        joystick.rightTrigger().onTrue(turret.moveToAngleCommandFR(90));
-        joystick.leftTrigger().onTrue(turret.moveToAngleCommandFR(-90));
+        joystick.rightTrigger().onTrue(turret.moveToAngleCommandFR(270));
+        joystick.leftTrigger().onTrue(turret.moveToAngleCommandFR(-270));
 
         // FIXED: Vision tracking - use whileTrue with trackAngleCommand
         // joystick.y().whileTrue(
