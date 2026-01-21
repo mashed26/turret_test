@@ -1,5 +1,6 @@
 package frc.robot.subsystems.turret;
 
+import static edu.wpi.first.units.Units.Degree;
 import static edu.wpi.first.units.Units.Radians;
 import static edu.wpi.first.units.Units.RadiansPerSecond;
 import static edu.wpi.first.units.Units.Rotations;
@@ -75,8 +76,8 @@ public class TurretSubsytem extends SubsystemBase {
   private Supplier<Pose2d> robotPose;
 
   // Double Encoder Variables
-  private static final double GEAR_0_TOOTH_COUNT = 132.0;
-  private static final double GEAR_1_TOOTH_COUNT = 25.0;
+  private static final double GEAR_0_TOOTH_COUNT = 132;
+  private static final double GEAR_1_TOOTH_COUNT = 25;
   private static final double GEAR_2_TOOTH_COUNT = 24.0;
   private static final double SLOPE = (GEAR_2_TOOTH_COUNT * GEAR_1_TOOTH_COUNT)
     / ((GEAR_1_TOOTH_COUNT - GEAR_2_TOOTH_COUNT) * GEAR_0_TOOTH_COUNT);
@@ -113,11 +114,11 @@ public class TurretSubsytem extends SubsystemBase {
     CANcoderConfiguration outerCoderConfig = new CANcoderConfiguration();
 
     innerCoderConfig.MagnetSensor.withAbsoluteSensorDiscontinuityPoint(1.0);
-    //innerCoderConfig.MagnetSensor.withMagnetOffset(-0.137939453125);
+    innerCoderConfig.MagnetSensor.withMagnetOffset(-0.15576171875);
     innerCoderConfig.MagnetSensor.SensorDirection = SensorDirectionValue.CounterClockwise_Positive;
 
     outerCoderConfig.MagnetSensor.withAbsoluteSensorDiscontinuityPoint(1.0);
-    //outerCoderConfig.MagnetSensor.withMagnetOffset(-0.181884765625);
+    outerCoderConfig.MagnetSensor.withMagnetOffset(-0.20849609375);
     outerCoderConfig.MagnetSensor.SensorDirection = SensorDirectionValue.Clockwise_Positive;
 
     innerEncoder.getConfigurator().apply(innerCoderConfig);
@@ -189,6 +190,8 @@ public class TurretSubsytem extends SubsystemBase {
     SmartDashboard.putNumber("Turret Inner Encoder Angle", Units.rotationsToDegrees(innerEncoder.getAbsolutePosition().getValueAsDouble()));
     SmartDashboard.putNumber("Turret Outer Encoder Angle", Units.rotationsToDegrees(outerEncoder.getAbsolutePosition().getValueAsDouble()));
     SmartDashboard.putNumber("Turret Velocity", getVelocity());
+
+
   }
 
   /** Update simulation. */
@@ -354,11 +357,14 @@ public class TurretSubsytem extends SubsystemBase {
     return runOnce(() -> setAngle(angleDegrees));
   }
 
+  private static double lastTurretAngle = 0.0;
+
       public static double calculateTurretAngleFromCANCoderDegrees(double e1, double e2) {
         double difference = e2 - e1;
         SmartDashboard.putNumber("e1 turret", e1);
         SmartDashboard.putNumber("e2 turret", e2);
         SmartDashboard.putNumber("OG Diff", difference);
+        
        // System.out.println("OG Diff: " + differenceV2);
         if (difference > 250) {
             difference -= 360;
@@ -369,18 +375,32 @@ public class TurretSubsytem extends SubsystemBase {
         difference *= SLOPE;
 
         double e1Rotations = (difference * GEAR_0_TOOTH_COUNT / GEAR_1_TOOTH_COUNT) / 360.0;
-        // double e1RotationsFloored = Math.floor(e1Rotations);
-        double turretAngle = (e1Rotations * 360.0 + e1) * (GEAR_1_TOOTH_COUNT / GEAR_0_TOOTH_COUNT);
+        double e1RotationsFloored = Math.floor(e1Rotations);
+        double turretAngle = (e1RotationsFloored * 360.0 + e1) * (GEAR_1_TOOTH_COUNT / GEAR_0_TOOTH_COUNT);
         SmartDashboard.putNumber("e1 Rotations", e1Rotations);
         SmartDashboard.putNumber("in method turret", turretAngle);
         SmartDashboard.putNumber("BUNZ difference", difference);
-        if (turretAngle - difference < -100) {
-            turretAngle += GEAR_1_TOOTH_COUNT / GEAR_0_TOOTH_COUNT * 360.0;
-        } else if (turretAngle - difference > 100) {
-            turretAngle -= GEAR_1_TOOTH_COUNT / GEAR_0_TOOTH_COUNT * 360.0;
+        SmartDashboard.putNumber("Turret/floored e1", e1RotationsFloored);
+        
+        double rotation = (GEAR_1_TOOTH_COUNT / GEAR_0_TOOTH_COUNT) * 360.0;
+
+        double a0 = turretAngle;
+        double aPlus = turretAngle + rotation;
+        double aMinus = turretAngle - rotation;
+      
+        double error0 = Math.abs(a0 - lastTurretAngle);
+        double errorPlus = Math.abs(aPlus - lastTurretAngle);
+        double errorMinus = Math.abs(aMinus - lastTurretAngle);
+
+        if (errorPlus < error0 && errorPlus < errorMinus) {
+          turretAngle = aPlus;
+        } else if (errorMinus < error0){
+          turretAngle = aMinus;
         }
+        lastTurretAngle = turretAngle;
         return turretAngle;
     }
+
 
   // Normalizes the input angle to the range of [-360, 360]
   // Allows to find shorter angles to travel faster.
@@ -451,7 +471,6 @@ private double getSafeTargetAngle(double requestedAngle) {
           double currentAngle = getPositionDegrees();
           double error = safeTarget - currentAngle;
           
-
           double velocityDegPerSec =
               Math.signum(error)
                   * Math.min(Math.abs(error) * 2.0, Units.radiansToDegrees(maxVelocity));

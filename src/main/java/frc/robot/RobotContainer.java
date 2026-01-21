@@ -15,6 +15,7 @@ import com.ctre.phoenix6.swerve.SwerveRequest;
 
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
@@ -24,6 +25,7 @@ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
+import frc.robot.subsystems.DrivetrainConstants;
 import frc.robot.subsystems.turret.TurretSubsytem;
 import frc.robot.subsystems.vision.Vision;
 
@@ -59,33 +61,40 @@ public class RobotContainer {
     }
 
     private double getNearest45DegreeAngle(double currentDegrees) {
-        while (currentDegrees > 180) currentDegrees -= 360;
-        while (currentDegrees < -180) currentDegrees += 360;
+        double target;
+        /*
+         * -135 (-180 -90)
+         * -45 (-90 0)
+         * 45 (0 90)
+         * 135 (90 180)
+         */
+        if (currentDegrees > -180 && currentDegrees < -90) {
+            target = -135;
+        } else if (currentDegrees > -90 && currentDegrees < 0) {
+            target = -45;
+        } else if (currentDegrees > 0 && currentDegrees < 90) {
+            target = 45;
+        } else if (currentDegrees > 90 && currentDegrees < 180) {
+            target = 135;
+        } else {
+            target = 0;
+        }
         
-        double rounded = Math.round(currentDegrees / 45.0) * 45.0;
-        
-        while (rounded > 180) rounded -= 360;
-        while (rounded < -180) rounded += 360;
-        
-        return rounded;
+        return target;
     }
 
     private Command snapTo45Degrees() {
-        return Commands.runOnce(() -> {
-            double currentAngle = drivetrain.getState().Pose.getRotation().getDegrees();
-            double targetAngle = getNearest45DegreeAngle(currentAngle);
-            SmartDashboard.putNumber("Snap/TargetAngle", targetAngle);
-        }).andThen(
-            drivetrain.applyRequest(() -> 
+        return Commands.runOnce(() ->
+        drivetrain.applyRequest(() -> 
                 fieldCentricFacingAngle
                     .withVelocityX(-joystick.getLeftY() * MaxSpeed)
                     .withVelocityY(-joystick.getLeftX() * MaxSpeed)
                     .withTargetDirection(Rotation2d.fromDegrees(
                         getNearest45DegreeAngle(drivetrain.getState().Pose.getRotation().getDegrees())
-                    ))
-            )
-        );
+                    ))));
     }
+
+    private double capturedTargetAngle = 0;
 
     private void configureBindings() {
         // Default swerve drive command
@@ -109,7 +118,21 @@ public class RobotContainer {
             point.withModuleDirection(new Rotation2d(-joystick.getLeftY(), -joystick.getLeftX()))
         ));
 
-        joystick.y().whileTrue(snapTo45Degrees());
+        joystick.y().whileTrue(
+        Commands.runOnce(() -> {
+            // Capture the target angle ONCE when button is pressed
+            capturedTargetAngle = getNearest45DegreeAngle(
+                drivetrain.getState().Pose.getRotation().getDegrees());
+            DrivetrainConstants.HEADING_CONTROLLER_PROFILED.reset(
+                drivetrain.getState().Pose.getRotation().getRadians());
+        }).andThen(
+            drivetrain.applyRequest(() ->
+                drivetrain.getHelper().getFacingAngleProfiled(
+                    new Translation2d(-joystick.getLeftX(), -joystick.getLeftY()),
+                    Rotation2d.fromDegrees(capturedTargetAngle),
+                    DrivetrainConstants.HEADING_CONTROLLER_PROFILED))
+        )
+    );
 
         joystick.rightTrigger().onTrue(turret.moveToAngleCommandFR(270));
         joystick.leftTrigger().onTrue(turret.moveToAngleCommandFR(-270));
@@ -127,7 +150,8 @@ public class RobotContainer {
         // SysId routines
         joystick.back().and(joystick.y()).whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
         joystick.back().and(joystick.x()).whileTrue(drivetrain.sysIdDynamic(Direction.kReverse));
-        joystick.start().and(joystick.y()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
+        joystick.start()
+        .and(joystick.y()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
         joystick.start().and(joystick.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
         
         // Reset field-centric heading
@@ -136,11 +160,10 @@ public class RobotContainer {
         drivetrain.registerTelemetry(logger::telemeterize);
     }
 
-    Supplier<Pose2d> robotPose = () -> drivetrain.getState().Pose;
-
     public void periodic() {
         // Update vision subsystem with current turret angle
         vision.setTurretAngle(turret.getPositionDegrees());
+        Supplier<Pose2d> robotPose = () -> drivetrain.getState().Pose;
 
         // SmartDashboard telemetry
         SmartDashboard.putNumber("Turret/Position", turret.getPositionDegrees());
