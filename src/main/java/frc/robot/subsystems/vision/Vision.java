@@ -7,9 +7,11 @@ import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Translation3d;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.Robot;
 
 import com.teamscreamrobotics.data.Length;
 import com.teamscreamrobotics.vision.LimelightVision;
@@ -43,6 +45,10 @@ public class Vision extends SubsystemBase {
     @Override
     public void periodic() {
         // No need to manually fetch results - LimelightHelpers handles this
+        if(DriverStation.isDisabled()){
+            LimelightVision.setThrottle(150, limelight);
+        }
+        else {LimelightVision.setThrottle(0, limelight);}
 
         SmartDashboard.putNumber("angle", getDesiredAngle());
     }
