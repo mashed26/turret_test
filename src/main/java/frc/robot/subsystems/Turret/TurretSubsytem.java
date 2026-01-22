@@ -1,14 +1,16 @@
-package frc.robot.subsystems.turret;
+package frc.robot.subsystems.Turret;
 
 import static edu.wpi.first.units.Units.Degree;
 import static edu.wpi.first.units.Units.Radians;
 import static edu.wpi.first.units.Units.RadiansPerSecond;
 import static edu.wpi.first.units.Units.Rotations;
 import static edu.wpi.first.units.Units.RotationsPerSecond;
+import static edu.wpi.first.units.Units.Volts;
 
 import java.util.function.Supplier;
 
 import com.ctre.phoenix6.BaseStatusSignal;
+import com.ctre.phoenix6.SignalLogger;
 import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.configs.CANcoderConfiguration;
 import com.ctre.phoenix6.configs.CurrentLimitsConfigs;
@@ -22,6 +24,7 @@ import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.GravityTypeValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import com.ctre.phoenix6.signals.SensorDirectionValue;
+import com.ctre.phoenix6.controls.VoltageOut;
 
 import edu.wpi.first.epilogue.Logged;
 import edu.wpi.first.math.MathUtil;
@@ -35,6 +38,7 @@ import edu.wpi.first.wpilibj.simulation.SingleJointedArmSim;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 
 /** Pivot subsystem using TalonFX with Krakenx60 motor */
 @Logged(name = "TurretSubsystem")
@@ -84,6 +88,8 @@ public class TurretSubsytem extends SubsystemBase {
 
   // Simulation
   private final SingleJointedArmSim pivotSim;
+
+  private final SysIdRoutine routine;
 
   /** Creates a new Pivot Subsystem. */
   public TurretSubsytem(Supplier<Pose2d> pose) {
@@ -175,6 +181,21 @@ public class TurretSubsytem extends SubsystemBase {
             false, // Simulate gravity - Disable gravity for pivot
             Units.degreesToRadians(0) // Starting position (rad)
             );
+
+    routine = new SysIdRoutine(
+      new SysIdRoutine.Config(
+              null, // Use default ramp rate (1 V/s)
+              Volts.of(7), // Use dynamic voltage of 7 V
+              null, // Use default timeout (10 s)
+              // Log state with SignalLogger class
+              state -> SignalLogger.writeString("SysIdTurret_State", state.toString())),  // Default config is fine for most
+      new SysIdRoutine.Mechanism(
+          volts -> motor.setControl(new VoltageOut(volts)),  // Apply voltage to the motor
+          null,
+          this
+      )
+    );
+
   }
 
   /** Update simulation and telemetry. */
@@ -605,4 +626,27 @@ private double getSafeTargetAngle(double requestedAngle) {
     double safeTarget = getSafeTargetAngle(targetDegrees);
     return Math.abs(safeTarget - getPositionDegrees()) < 2.0;
   }
+
+    /**
+   * Runs the SysId Quasistatic test in the given direction for the routine specified by {@link
+   * #m_sysIdRoutineToApply}.
+   *
+   * @param direction Direction of the SysId Quasistatic test
+   * @return Command to run
+   */
+  public Command sysIdQuasistatic(SysIdRoutine.Direction direction) {
+    return routine.quasistatic(direction);
+  }
+  
+  /**
+   * Runs the SysId Dynamic test in the given direction for the routine specified by {@link
+   * #m_sysIdRoutineToApply}.
+   *
+   * @param direction Direction of the SysId Dynamic test
+   * @return Command to run
+   */
+  public Command sysIdDynamic(SysIdRoutine.Direction direction) {
+    return routine.dynamic(direction);
+  }
+
 }

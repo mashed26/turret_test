@@ -11,6 +11,7 @@ import java.util.function.Supplier;
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.teamscreamrobotics.physics.Trajectory;
 import com.teamscreamrobotics.physics.Trajectory.GamePiece;
+import com.ctre.phoenix6.SignalLogger;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
 import edu.wpi.first.math.geometry.Pose2d;
@@ -26,7 +27,7 @@ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.DrivetrainConstants;
-import frc.robot.subsystems.turret.TurretSubsytem;
+import frc.robot.subsystems.Turret.TurretSubsytem;
 import frc.robot.subsystems.vision.Vision;
 
 public class RobotContainer {
@@ -148,11 +149,18 @@ public class RobotContainer {
         joystick.povRight().onTrue(turret.moveToAngleCommandRR(0)); // Reset to forward
 
         // SysId routines
+        /*
         joystick.back().and(joystick.y()).whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
         joystick.back().and(joystick.x()).whileTrue(drivetrain.sysIdDynamic(Direction.kReverse));
-        joystick.start()
-        .and(joystick.y()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
+        joystick.start().and(joystick.y()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
         joystick.start().and(joystick.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
+        */
+        joystick.start().and(joystick.leftBumper()).onTrue(Commands.runOnce(()->SignalLogger.start()));
+        joystick.start().and(joystick.rightBumper()).onTrue(Commands.runOnce(()->SignalLogger.stop()));
+        joystick.back().and(joystick.y()).whileTrue(turret.sysIdDynamic(Direction.kForward));
+        joystick.back().and(joystick.x()).whileTrue(turret.sysIdDynamic(Direction.kReverse));
+        joystick.start().and(joystick.y()).whileTrue(turret.sysIdQuasistatic(Direction.kForward));
+        joystick.start().and(joystick.x()).whileTrue(turret.sysIdQuasistatic(Direction.kReverse));
         
         // Reset field-centric heading
         joystick.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
