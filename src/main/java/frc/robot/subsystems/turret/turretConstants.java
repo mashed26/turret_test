@@ -2,7 +2,7 @@
 // Open Source Software; you can modify and/or share it under the terms of
 // the WPILib BSD license file in the root directory of this project.
 
-package frc.robot.subsystems.Turret;
+package frc.robot.subsystems.turret;
 
 import com.ctre.phoenix6.signals.GravityTypeValue;
 import com.ctre.phoenix6.signals.InvertedValue;
@@ -16,7 +16,7 @@ import com.teamscreamrobotics.pid.ScreamPIDConstants.FeedforwardConstants;
 import edu.wpi.first.math.util.Units;
 
 /** Add your docs here. */
-public class turretConstants {
+public class TurretConstants {
 
     public static final double TURRET_REDUCTION = 13.2;
     public static final double MIN_ROT_DEG = -360.0;
