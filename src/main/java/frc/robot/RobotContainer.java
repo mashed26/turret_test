@@ -41,9 +41,11 @@ public class RobotContainer {
     private final SwerveRequest.PointWheelsAt point = new SwerveRequest.PointWheelsAt();
     
     // Request for rotating to a specific angle
+    /*
     private final SwerveRequest.FieldCentricFacingAngle fieldCentricFacingAngle = new SwerveRequest.FieldCentricFacingAngle()
             .withDeadband(MaxSpeed * 0.1)
             .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
+    */
 
     private final Telemetry logger = new Telemetry(MaxSpeed);
 
@@ -63,12 +65,7 @@ public class RobotContainer {
 
     private double getNearest45DegreeAngle(double currentDegrees) {
         double target;
-        /*
-         * -135 (-180 -90)
-         * -45 (-90 0)
-         * 45 (0 90)
-         * 135 (90 180)
-         */
+        
         if (currentDegrees > -180 && currentDegrees < -90) {
             target = -135;
         } else if (currentDegrees > -90 && currentDegrees < 0) {
@@ -82,17 +79,6 @@ public class RobotContainer {
         }
         
         return target;
-    }
-
-    private Command snapTo45Degrees() {
-        return Commands.runOnce(() ->
-        drivetrain.applyRequest(() -> 
-                fieldCentricFacingAngle
-                    .withVelocityX(-joystick.getLeftY() * MaxSpeed)
-                    .withVelocityY(-joystick.getLeftX() * MaxSpeed)
-                    .withTargetDirection(Rotation2d.fromDegrees(
-                        getNearest45DegreeAngle(drivetrain.getState().Pose.getRotation().getDegrees())
-                    ))));
     }
 
     private double capturedTargetAngle = 0;
@@ -121,7 +107,6 @@ public class RobotContainer {
 
         joystick.y().whileTrue(
         Commands.runOnce(() -> {
-            // Capture the target angle ONCE when button is pressed
             capturedTargetAngle = getNearest45DegreeAngle(
                 drivetrain.getState().Pose.getRotation().getDegrees());
             DrivetrainConstants.HEADING_CONTROLLER_PROFILED.reset(
@@ -132,7 +117,7 @@ public class RobotContainer {
                     new Translation2d(-joystick.getLeftX(), -joystick.getLeftY()),
                     Rotation2d.fromDegrees(capturedTargetAngle),
                     DrivetrainConstants.HEADING_CONTROLLER_PROFILED))
-        )
+        ).beforeStarting(() -> drivetrain.resetHeadingController())
     );
 
         joystick.rightTrigger().onTrue(turret.moveToAngleCommandFR(270));

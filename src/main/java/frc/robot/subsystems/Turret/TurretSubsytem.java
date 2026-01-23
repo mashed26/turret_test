@@ -1,6 +1,5 @@
 package frc.robot.subsystems.turret;
 
-import static edu.wpi.first.units.Units.Degree;
 import static edu.wpi.first.units.Units.Radians;
 import static edu.wpi.first.units.Units.RadiansPerSecond;
 import static edu.wpi.first.units.Units.Rotations;
@@ -29,7 +28,6 @@ import com.ctre.phoenix6.controls.VoltageOut;
 import edu.wpi.first.epilogue.Logged;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.*;
 import edu.wpi.first.wpilibj.simulation.BatterySim;
@@ -43,30 +41,6 @@ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 /** Pivot subsystem using TalonFX with Krakenx60 motor */
 @Logged(name = "TurretSubsystem")
 public class TurretSubsytem extends SubsystemBase {
-
-  // Constants
-  private final DCMotor dcMotor = DCMotor.getKrakenX60(1);
-  private final CANcoder innerEncoder;
-  private final CANcoder outerEncoder;
-  private final int canID = 8;
-  private final double gearRatio = 13.2;
-  private final double kP = 5.5;
-  private final double kI = 0.0;
-  private final double kD = 0.05;
-  private final double kS = 0;
-  private final double kV = .1;
-  private final double kA = 0.0;
-  private final double maxVelocity = 40; // rad/s
-  private final double maxAccel = 40;
-  private final boolean brakeMode = true;
-  private final boolean enableStatorLimit = true;
-  private final double statorCurrentLimit = 40;
-  private final boolean enableSupplyLimit = true;
-  private final double supplyCurrentLimit = 40;
-
-  private final static double minRotDeg = -360;
-  private final static double maxRotDeg = 360;
-
   // Motor controller
   private final TalonFX motor;
   private final PositionVoltage positionRequest;
@@ -76,32 +50,24 @@ public class TurretSubsytem extends SubsystemBase {
   private final StatusSignal<Voltage> voltageSignal;
   private final StatusSignal<Current> statorCurrentSignal;
   private final StatusSignal<Temperature> temperatureSignal;
-  
-  private Supplier<Pose2d> robotPose;
 
-  // Double Encoder Variables
-  private static final double GEAR_0_TOOTH_COUNT = 132;
-  private static final double GEAR_1_TOOTH_COUNT = 25;
-  private static final double GEAR_2_TOOTH_COUNT = 24.0;
-  private static final double SLOPE = (GEAR_2_TOOTH_COUNT * GEAR_1_TOOTH_COUNT)
-    / ((GEAR_1_TOOTH_COUNT - GEAR_2_TOOTH_COUNT) * GEAR_0_TOOTH_COUNT);
+  private final CANcoder innerEncoder;
+  private final CANcoder outerEncoder;
 
   // Simulation
   private final SingleJointedArmSim pivotSim;
+  private Supplier<Pose2d> robotPose;
 
   private final SysIdRoutine routine;
 
   /** Creates a new Pivot Subsystem. */
-  public TurretSubsytem(Supplier<Pose2d> pose) {
+  public TurretSubsytem(Supplier<Pose2d> robotPose) {
+    this.robotPose = robotPose;
+
     // Initialize motor controller
-    motor = new TalonFX(canID);
+    motor = new TalonFX(TurretConstants.canID);
     innerEncoder = new CANcoder(5);
     outerEncoder = new CANcoder(4);
-
-
-
-
-    this.robotPose = pose;
 
     // Create control requests
     positionRequest = new PositionVoltage(0).withSlot(0);
@@ -132,26 +98,26 @@ public class TurretSubsytem extends SubsystemBase {
 
     // Configure PID for slot 0
     Slot0Configs slot0 = config.Slot0;
-    slot0.kP = kP;
-    slot0.kI = kI;
-    slot0.kD = kD;
+    slot0.kP = TurretConstants.kP;
+    slot0.kI = TurretConstants.kI;
+    slot0.kD = TurretConstants.kD;
     slot0.GravityType = GravityTypeValue.Arm_Cosine;
-    slot0.kS = kS;
-    slot0.kV = kV;
-    slot0.kA = kA;
+    slot0.kS = TurretConstants.kS;
+    slot0.kV = TurretConstants.kV;
+    slot0.kA = TurretConstants.kA;
 
     magicConfigs.MotionMagicAcceleration = 40.0;
     magicConfigs.MotionMagicCruiseVelocity = 30.0;
 
     // Set current limits
     CurrentLimitsConfigs currentLimits = config.CurrentLimits;
-    currentLimits.StatorCurrentLimit = statorCurrentLimit;
-    currentLimits.StatorCurrentLimitEnable = enableStatorLimit;
-    currentLimits.SupplyCurrentLimit = supplyCurrentLimit;
-    currentLimits.SupplyCurrentLimitEnable = enableSupplyLimit;
+    currentLimits.StatorCurrentLimit = TurretConstants.statorCurrentLimit;
+    currentLimits.StatorCurrentLimitEnable = TurretConstants.enableStatorLimit;
+    currentLimits.SupplyCurrentLimit = TurretConstants.supplyCurrentLimit;
+    currentLimits.SupplyCurrentLimitEnable = TurretConstants.enableSupplyLimit;
 
     // Set brake mode
-    config.MotorOutput.NeutralMode = brakeMode ? NeutralModeValue.Brake : NeutralModeValue.Coast;
+    config.MotorOutput.NeutralMode = TurretConstants.brakeMode ? NeutralModeValue.Brake : NeutralModeValue.Coast;
     
     // Set motor rotation limits
     config.SoftwareLimitSwitch.withForwardSoftLimitThreshold(.95);
@@ -160,7 +126,7 @@ public class TurretSubsytem extends SubsystemBase {
     config.SoftwareLimitSwitch.withReverseSoftLimitEnable(true);
 
     // Apply gear ratio
-    config.Feedback.SensorToMechanismRatio = gearRatio;
+    config.Feedback.SensorToMechanismRatio = TurretConstants.gearRatio;
 
     // Apply configuration
     motor.getConfigurator().apply(config);
@@ -172,8 +138,8 @@ public class TurretSubsytem extends SubsystemBase {
     // Initialize simulation
     pivotSim =
         new SingleJointedArmSim(
-            dcMotor, // Motor type
-            gearRatio,
+            TurretConstants.dcMotor, // Motor type
+            TurretConstants.gearRatio,
             0.01, // Arm moment of inertia - Small value since there are no arm parameters
             0.1, // Arm length (m) - Small value since there are no arm parameters
             Units.degreesToRadians(-90), // Min angle (rad)
@@ -232,9 +198,9 @@ public class TurretSubsytem extends SubsystemBase {
     RoboRioSim.setVInVoltage(
         BatterySim.calculateDefaultBatteryLoadedVoltage(pivotSim.getCurrentDrawAmps()));
 
-    double motorPosition = Radians.of(pivotSim.getAngleRads() * gearRatio).in(Rotations);
+    double motorPosition = Radians.of(pivotSim.getAngleRads() * TurretConstants.gearRatio).in(Rotations);
     double motorVelocity =
-        RadiansPerSecond.of(pivotSim.getVelocityRadPerSec() * gearRatio).in(RotationsPerSecond);
+        RadiansPerSecond.of(pivotSim.getVelocityRadPerSec() * TurretConstants.gearRatio).in(RotationsPerSecond);
 
     motor.getSimState().setRawRotorPosition(motorPosition);
     motor.getSimState().setRotorVelocity(motorVelocity);
@@ -331,7 +297,7 @@ public class TurretSubsytem extends SubsystemBase {
    */
   public void setVelocity(double velocityDegPerSec) {
     SmartDashboard.putNumber("Turret/velPerSec", velocityDegPerSec);
-    setVelocity(velocityDegPerSec, maxAccel);
+    setVelocity(velocityDegPerSec, TurretConstants.maxAccel);
   }
 
   /**
@@ -393,17 +359,17 @@ public class TurretSubsytem extends SubsystemBase {
         if (difference < -250) {
             difference += 360;
         }
-        difference *= SLOPE;
+        difference *= TurretConstants.SLOPE;
 
-        double e1Rotations = (difference * GEAR_0_TOOTH_COUNT / GEAR_1_TOOTH_COUNT) / 360.0;
+        double e1Rotations = (difference * TurretConstants.GEAR_0_TOOTH_COUNT / TurretConstants.GEAR_1_TOOTH_COUNT) / 360.0;
         double e1RotationsFloored = Math.floor(e1Rotations);
-        double turretAngle = (e1RotationsFloored * 360.0 + e1) * (GEAR_1_TOOTH_COUNT / GEAR_0_TOOTH_COUNT);
+        double turretAngle = (e1RotationsFloored * 360.0 + e1) * (TurretConstants.GEAR_1_TOOTH_COUNT / TurretConstants.GEAR_0_TOOTH_COUNT);
         SmartDashboard.putNumber("e1 Rotations", e1Rotations);
         SmartDashboard.putNumber("in method turret", turretAngle);
         SmartDashboard.putNumber("BUNZ difference", difference);
         SmartDashboard.putNumber("Turret/floored e1", e1RotationsFloored);
         
-        double rotation = (GEAR_1_TOOTH_COUNT / GEAR_0_TOOTH_COUNT) * 360.0;
+        double rotation = (TurretConstants.GEAR_1_TOOTH_COUNT / TurretConstants.GEAR_0_TOOTH_COUNT) * 360.0;
 
         double a0 = turretAngle;
         double aPlus = turretAngle + rotation;
@@ -434,7 +400,7 @@ public class TurretSubsytem extends SubsystemBase {
 // Does the actual check to ensure that angle is within bounds
 // and will not damage any parts of the turret.
 private boolean isWithinLimits(double angle) {
-    return angle >= minRotDeg && angle <= maxRotDeg;
+    return angle >= TurretConstants.minRotDeg && angle <= TurretConstants.maxRotDeg;
 }
 
 private double getSafeTargetAngle(double requestedAngle) {
@@ -465,14 +431,14 @@ private double getSafeTargetAngle(double requestedAngle) {
         chosenDelta = pathCCW;
     } else {
         // No legal path — clamp to nearest limit
-        return MathUtil.clamp(requestedAngle, minRotDeg, maxRotDeg);
+        return MathUtil.clamp(requestedAngle, TurretConstants.minRotDeg, TurretConstants.maxRotDeg);
     }
 
     SmartDashboard.putNumber("chosenDelta", chosenDelta);
     return MathUtil.clamp(
         chosenDelta + current,
-        minRotDeg,
-        maxRotDeg
+        TurretConstants.minRotDeg,
+        TurretConstants.maxRotDeg
     );
 }
 
@@ -494,7 +460,7 @@ private double getSafeTargetAngle(double requestedAngle) {
           
           double velocityDegPerSec =
               Math.signum(error)
-                  * Math.min(Math.abs(error) * 2.0, Units.radiansToDegrees(maxVelocity));
+                  * Math.min(Math.abs(error) * 2.0, Units.radiansToDegrees(TurretConstants.maxVelocity));
           setVelocity(velocityDegPerSec);
         })
         .until(
@@ -524,16 +490,16 @@ private double getSafeTargetAngle(double requestedAngle) {
 
           double velocityDegPerSec =
               Math.signum(error)
-                  * Math.min(Math.abs(error) * 7.0, Units.radiansToDegrees(maxVelocity));
+                  * Math.min(Math.abs(error) * 7.0, Units.radiansToDegrees(TurretConstants.maxVelocity));
           setVelocity(velocityDegPerSec);
           System.out.println("Turret Velocity DEG-PER-SEC: " + velocityDegPerSec);
         })
         .until(
             () -> {
               // Calculates the shortest safe path to get to the target.
-              double robotHeading = robotPose.get().getRotation().getDegrees();
+              //double robotHeading = robotPose.get().getRotation().getDegrees();
               double safeTarget = getSafeTargetAngle(angleDegrees);
-              double currentAngle = getPositionDegrees();
+              //double currentAngle = getPositionDegrees();
             //  System.out.println(safeTarget);
               
               return Math.abs(safeTarget) < 2.0; // 2 degree tolerance
@@ -560,15 +526,6 @@ private double getSafeTargetAngle(double requestedAngle) {
     return run(() -> setVelocity(velocityDegPerSec));
   }
 
-  // ========== ADDED METHODS ==========
-
-  /**
-   * ADDED: Alternative command using position control instead of velocity control.
-   * This uses the TalonFX's built-in PID controller to reach the target.
-   * 
-   * @param angleDegrees The target angle in degrees
-   * @return A command that moves to the angle using position control
-   */
   public Command moveToAnglePositionCommand(double angleDegrees) {
     return runOnce(() -> {
       double safeTarget = getSafeTargetAngle(angleDegrees);
@@ -581,13 +538,6 @@ private double getSafeTargetAngle(double requestedAngle) {
     }).withName("MoveToAnglePosition:" + angleDegrees);
   }
 
-  /**
-   * ADDED: Command for continuous vision tracking.
-   * Updates the target angle every loop cycle.
-   *
-   * @param angleSupplier Supplier that provides the desired angle (e.g., from vision)
-   * @return A command that continuously tracks the angle
-   */
   public Command trackAngleCommand(java.util.function.DoubleSupplier angleSupplier) {
     return run(() -> {
       double targetAngle = angleSupplier.getAsDouble();
@@ -596,22 +546,13 @@ private double getSafeTargetAngle(double requestedAngle) {
     }).withName("TrackAngle");
   }
 
-  /**
-   * ADDED: Command for manual control with joystick input.
-   *
-   * @param speedSupplier Supplier providing speed from -1.0 to 1.0
-   * @return A command for manual turret control
-   */
   public Command manualControlCommand(java.util.function.DoubleSupplier speedSupplier) {
     return run(() -> {
       double speed = speedSupplier.getAsDouble();
-      setVelocity(speed * Units.radiansToDegrees(maxVelocity));
+      setVelocity(speed * Units.radiansToDegrees(TurretConstants.maxVelocity));
     }).withName("ManualControl");
   }
 
-  /**
-   * ADDED: Stop the motor completely.
-   */
   public void stop() {
     motor.stopMotor();
   }
