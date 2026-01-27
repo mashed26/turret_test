@@ -11,18 +11,10 @@ import java.util.function.Supplier;
 import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.SignalLogger;
 import com.ctre.phoenix6.StatusSignal;
-import com.ctre.phoenix6.configs.CANcoderConfiguration;
-import com.ctre.phoenix6.configs.CurrentLimitsConfigs;
-import com.ctre.phoenix6.configs.MotionMagicConfigs;
-import com.ctre.phoenix6.configs.Slot0Configs;
-import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.PositionVoltage;
 import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.hardware.CANcoder;
 import com.ctre.phoenix6.hardware.TalonFX;
-import com.ctre.phoenix6.signals.GravityTypeValue;
-import com.ctre.phoenix6.signals.NeutralModeValue;
-import com.ctre.phoenix6.signals.SensorDirectionValue;
 import com.ctre.phoenix6.controls.VoltageOut;
 
 import edu.wpi.first.epilogue.Logged;
@@ -66,8 +58,8 @@ public class TurretSubsytem extends SubsystemBase {
 
     // Initialize motor controller
     motor = new TalonFX(TurretConstants.canID);
-    innerEncoder = new CANcoder(5);
-    outerEncoder = new CANcoder(4);
+    innerEncoder = new CANcoder(TurretConstants.CAN_INNER_ID);
+    outerEncoder = new CANcoder(TurretConstants.CAN_OUTTER_ID);
 
     // Create control requests
     positionRequest = new PositionVoltage(0).withSlot(0);
@@ -80,57 +72,12 @@ public class TurretSubsytem extends SubsystemBase {
     statorCurrentSignal = motor.getStatorCurrent();
     temperatureSignal = motor.getDeviceTemp();
 
-    TalonFXConfiguration config = new TalonFXConfiguration();
-    MotionMagicConfigs magicConfigs = new MotionMagicConfigs();
-    CANcoderConfiguration innerCoderConfig = new CANcoderConfiguration();
-    CANcoderConfiguration outerCoderConfig = new CANcoderConfiguration();
-
-    innerCoderConfig.MagnetSensor.withAbsoluteSensorDiscontinuityPoint(1.0);
-    innerCoderConfig.MagnetSensor.withMagnetOffset(-0.15576171875);
-    innerCoderConfig.MagnetSensor.SensorDirection = SensorDirectionValue.CounterClockwise_Positive;
-
-    outerCoderConfig.MagnetSensor.withAbsoluteSensorDiscontinuityPoint(1.0);
-    outerCoderConfig.MagnetSensor.withMagnetOffset(-0.20849609375);
-    outerCoderConfig.MagnetSensor.SensorDirection = SensorDirectionValue.Clockwise_Positive;
-
-    innerEncoder.getConfigurator().apply(innerCoderConfig);
-    outerEncoder.getConfigurator().apply(outerCoderConfig);
-
-    // Configure PID for slot 0
-    Slot0Configs slot0 = config.Slot0;
-    slot0.kP = TurretConstants.kP;
-    slot0.kI = TurretConstants.kI;
-    slot0.kD = TurretConstants.kD;
-    slot0.GravityType = GravityTypeValue.Arm_Cosine;
-    slot0.kS = TurretConstants.kS;
-    slot0.kV = TurretConstants.kV;
-    slot0.kA = TurretConstants.kA;
-
-    magicConfigs.MotionMagicAcceleration = 40.0;
-    magicConfigs.MotionMagicCruiseVelocity = 30.0;
-
-    // Set current limits
-    CurrentLimitsConfigs currentLimits = config.CurrentLimits;
-    currentLimits.StatorCurrentLimit = TurretConstants.statorCurrentLimit;
-    currentLimits.StatorCurrentLimitEnable = TurretConstants.enableStatorLimit;
-    currentLimits.SupplyCurrentLimit = TurretConstants.supplyCurrentLimit;
-    currentLimits.SupplyCurrentLimitEnable = TurretConstants.enableSupplyLimit;
-
-    // Set brake mode
-    config.MotorOutput.NeutralMode = TurretConstants.brakeMode ? NeutralModeValue.Brake : NeutralModeValue.Coast;
-    
-    // Set motor rotation limits
-    config.SoftwareLimitSwitch.withForwardSoftLimitThreshold(.95);
-    config.SoftwareLimitSwitch.withReverseSoftLimitThreshold(-.95);
-    config.SoftwareLimitSwitch.withForwardSoftLimitEnable(true);
-    config.SoftwareLimitSwitch.withReverseSoftLimitEnable(true);
-
-    // Apply gear ratio
-    config.Feedback.SensorToMechanismRatio = TurretConstants.gearRatio;
+    innerEncoder.getConfigurator().apply(TurretConstants.INNER_CODER_CONFIG);
+    outerEncoder.getConfigurator().apply(TurretConstants.OUTTER_CODER_CONFIG);
 
     // Apply configuration
-    motor.getConfigurator().apply(config);
-    motor.getConfigurator().apply(magicConfigs);
+    motor.getConfigurator().apply(TurretConstants.MOTOR_CONFIG);
+    motor.getConfigurator().apply(TurretConstants.MAGIC_CONFIGS);
 
     // Reset encoder position
     motor.setPosition(0);
@@ -139,7 +86,7 @@ public class TurretSubsytem extends SubsystemBase {
     pivotSim =
         new SingleJointedArmSim(
             TurretConstants.dcMotor, // Motor type
-            TurretConstants.gearRatio,
+            TurretConstants.TURRET_REDUCTION,
             0.01, // Arm moment of inertia - Small value since there are no arm parameters
             0.1, // Arm length (m) - Small value since there are no arm parameters
             Units.degreesToRadians(-90), // Min angle (rad)
@@ -170,7 +117,7 @@ public class TurretSubsytem extends SubsystemBase {
     BaseStatusSignal.refreshAll(
         positionSignal, velocitySignal, voltageSignal, statorCurrentSignal, temperatureSignal);
 
-    //System.out.println("Turret Velocity: " + getVelocity());
+    SmartDashboard.putNumber("Turret Velocity", getVelocity());
     SmartDashboard.putNumber("Turret Angle", calculateTurretAngleFromCANCoderDegrees(
       Units.rotationsToDegrees(innerEncoder.getAbsolutePosition().getValueAsDouble()),
        Units.rotationsToDegrees(outerEncoder.getAbsolutePosition().getValueAsDouble())));
@@ -198,9 +145,9 @@ public class TurretSubsytem extends SubsystemBase {
     RoboRioSim.setVInVoltage(
         BatterySim.calculateDefaultBatteryLoadedVoltage(pivotSim.getCurrentDrawAmps()));
 
-    double motorPosition = Radians.of(pivotSim.getAngleRads() * TurretConstants.gearRatio).in(Rotations);
+    double motorPosition = Radians.of(pivotSim.getAngleRads() * TurretConstants.TURRET_REDUCTION).in(Rotations);
     double motorVelocity =
-        RadiansPerSecond.of(pivotSim.getVelocityRadPerSec() * TurretConstants.gearRatio).in(RotationsPerSecond);
+        RadiansPerSecond.of(pivotSim.getVelocityRadPerSec() * TurretConstants.TURRET_REDUCTION).in(RotationsPerSecond);
 
     motor.getSimState().setRawRotorPosition(motorPosition);
     motor.getSimState().setRotorVelocity(motorVelocity);
