@@ -46,7 +46,7 @@ public class Vision extends SubsystemBase {
     public void periodic() {
         // No need to manually fetch results - LimelightHelpers handles this
         if(DriverStation.isDisabled()){
-            LimelightVision.setThrottle(150, limelight);
+            LimelightVision.setThrottle(200, limelight);
         }
         else {LimelightVision.setThrottle(0, limelight);}
 

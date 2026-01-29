@@ -9,10 +9,14 @@ import com.ctre.phoenix6.signals.GravityTypeValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import com.ctre.phoenix6.signals.SensorDirectionValue;
 import com.teamscreamrobotics.drivers.TalonFXSubsystem.TalonFXSubsystemConfiguration;
+import com.teamscreamrobotics.pid.ScreamPIDConstants;
 
 import edu.wpi.first.math.system.plant.DCMotor;
+import edu.wpi.first.math.util.Units;
+import edu.wpi.first.wpilibj.simulation.SingleJointedArmSim;
 
 public class TurretConstants {
+
     public static final double TURRET_REDUCTION = 13.2;
     public static final double MIN_ROT_DEG = -360.0;
     public static final double MAX_ROT_DEG = 360.0;
@@ -104,5 +108,20 @@ public class TurretConstants {
     OUTTER_CODER_CONFIG.MagnetSensor.withAbsoluteSensorDiscontinuityPoint(1.0);
     OUTTER_CODER_CONFIG.MagnetSensor.withMagnetOffset(-0.20849609375);
     OUTTER_CODER_CONFIG.MagnetSensor.SensorDirection = SensorDirectionValue.Clockwise_Positive;
+
+
     }
+
+      public static final SingleJointedArmSim SIM =
+      new SingleJointedArmSim(
+          DCMotor.getKrakenX60(1),
+          TURRET_REDUCTION,
+          0.0490209781964,
+          // 40
+          Units.inchesToMeters(100),
+          Units.degreesToRadians(-360),
+          Units.degreesToRadians(360),
+          true,
+          Math.PI / 2.0);
+  public static final ScreamPIDConstants SIM_GAINS = new ScreamPIDConstants(50.0, 0.0, 50.0);
 }

@@ -9,14 +9,17 @@ import static edu.wpi.first.units.Units.*;
 import java.util.function.Supplier;
 
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
+import com.teamscreamrobotics.dashboard.MechanismVisualizer;
 import com.teamscreamrobotics.physics.Trajectory;
 import com.teamscreamrobotics.physics.Trajectory.GamePiece;
+import com.teamscreamrobotics.util.Logger;
 import com.ctre.phoenix6.SignalLogger;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.wpilibj.smartdashboard.Mechanism2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
@@ -31,6 +34,7 @@ import frc.robot.subsystems.turret.TurretSubsytem;
 import frc.robot.subsystems.vision.Vision;
 
 public class RobotContainer {
+    
     private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond);
     private double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond);
 
@@ -58,6 +62,13 @@ public class RobotContainer {
     private final double HEIGHT = 0; // TODO: Find height of robot
 
     private double targetDegrees = 0;
+
+     private final MechanismVisualizer mechVisualizer =
+      new MechanismVisualizer(
+          SimConstants.MEASURED_MECHANISM,
+          SimConstants.SETPOINT_MECHANISM,
+          RobotContainer::telemeterizeMechanisms,
+          turret.turretMech);
 
     public RobotContainer() {
         configureBindings();
@@ -184,6 +195,12 @@ public class RobotContainer {
             SmartDashboard.putNumber("Trajectory/OptimalAngle", Trajectory.getOptimalAngle());
         }
     }
+
+    public static void telemeterizeMechanisms(Mechanism2d measured, Mechanism2d setpoint) {
+        Logger.log("RobotState/Mechanisms/Measured", measured);
+        Logger.log("RobotState/Mechanisms/Setpoint", setpoint);
+    }
+
 
     public Command getAutonomousCommand() {
         // Example auto command: Track target for 5 seconds

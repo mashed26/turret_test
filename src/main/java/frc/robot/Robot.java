@@ -4,6 +4,9 @@
 
 package frc.robot;
 
+import com.teamscreamrobotics.util.Logger;
+
+import dev.doglog.DogLogOptions;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
@@ -15,6 +18,15 @@ public class Robot extends TimedRobot {
 
   public Robot() {
     m_robotContainer = new RobotContainer();
+
+        Logger.setOptions(
+        new DogLogOptions()
+            .withCaptureDs(true)
+            .withCaptureNt(true)
+            .withLogExtras(true)
+            .withNtPublish(true)
+            .withLogEntryQueueCapacity(2000));
+    Logger.setEnabled(true);
   }
 
   @Override

@@ -15,11 +15,16 @@ import com.ctre.phoenix6.controls.PositionVoltage;
 import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.hardware.CANcoder;
 import com.ctre.phoenix6.hardware.TalonFX;
+import com.teamscreamrobotics.dashboard.Ligament;
+import com.teamscreamrobotics.dashboard.Mechanism;
+import com.teamscreamrobotics.data.Length;
 import com.ctre.phoenix6.controls.VoltageOut;
 
 import edu.wpi.first.epilogue.Logged;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.*;
 import edu.wpi.first.wpilibj.simulation.BatterySim;
@@ -29,6 +34,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
+import frc.robot.SimConstants;
 
 /** Pivot subsystem using TalonFX with Krakenx60 motor */
 @Logged(name = "TurretSubsystem")
@@ -49,6 +55,15 @@ public class TurretSubsytem extends SubsystemBase {
   // Simulation
   private final SingleJointedArmSim pivotSim;
   private Supplier<Pose2d> robotPose;
+
+  private final Ligament turretOne =
+    new Ligament()
+      .withStaticLength(Length.fromInches(5.0))
+        .withDynamicAngle( ()-> Rotation2d.fromDegrees(getPositionDegrees()));
+
+  public final Mechanism turretMech =
+      new Mechanism("Turret Mech", turretOne)
+          .withStaticPosition(new Translation2d((SimConstants.MECH_WIDTH / 2.0) + Units.inchesToMeters(12.125), Units.inchesToMeters(15)));
 
   private final SysIdRoutine routine;
 
@@ -89,8 +104,8 @@ public class TurretSubsytem extends SubsystemBase {
             TurretConstants.TURRET_REDUCTION,
             0.01, // Arm moment of inertia - Small value since there are no arm parameters
             0.1, // Arm length (m) - Small value since there are no arm parameters
-            Units.degreesToRadians(-90), // Min angle (rad)
-            Units.degreesToRadians(90), // Max angle (rad)
+            Units.degreesToRadians(-360), // Min angle (rad)
+            Units.degreesToRadians(360), // Max angle (rad)
             false, // Simulate gravity - Disable gravity for pivot
             Units.degreesToRadians(0) // Starting position (rad)
             );
