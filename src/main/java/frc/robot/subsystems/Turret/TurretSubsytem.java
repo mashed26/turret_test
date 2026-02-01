@@ -281,7 +281,6 @@ public class TurretSubsytem extends SubsystemBase {
    * @param velocityDegPerSec The target velocity in degrees per second
    */
   public void setVelocity(double velocityDegPerSec) {
-    SmartDashboard.putNumber("Turret/velPerSec", velocityDegPerSec);
     setVelocity(velocityDegPerSec, TurretConstants.maxAccel);
   }
 
@@ -295,7 +294,6 @@ public class TurretSubsytem extends SubsystemBase {
     // Convert degrees/sec to rotations/sec
     double velocityRadPerSec = Units.degreesToRadians(velocityDegPerSec);
     double velocityRotations = velocityRadPerSec / (2.0 * Math.PI);
-    SmartDashboard.putNumber("Turret/velocityRotations", velocityRotations);
 
     // motor.setControl(velocityRequest.withVelocity(velocityRotations).withFeedForward(ffVolts));
     motor.setControl(velocityRequest.withVelocity(velocityRotations));
@@ -333,11 +331,8 @@ public class TurretSubsytem extends SubsystemBase {
 
       public static double calculateTurretAngleFromCANCoderDegrees(double e1, double e2) {
         double difference = e2 - e1;
-        SmartDashboard.putNumber("e1 turret", e1);
-        SmartDashboard.putNumber("e2 turret", e2);
-        SmartDashboard.putNumber("OG Diff", difference);
-        
-       // System.out.println("OG Diff: " + differenceV2);
+
+
         if (difference > 250) {
             difference -= 360;
         }
@@ -349,11 +344,7 @@ public class TurretSubsytem extends SubsystemBase {
         double e1Rotations = (difference * TurretConstants.GEAR_0_TOOTH_COUNT / TurretConstants.GEAR_1_TOOTH_COUNT) / 360.0;
         double e1RotationsFloored = Math.floor(e1Rotations);
         double turretAngle = (e1RotationsFloored * 360.0 + e1) * (TurretConstants.GEAR_1_TOOTH_COUNT / TurretConstants.GEAR_0_TOOTH_COUNT);
-        SmartDashboard.putNumber("e1 Rotations", e1Rotations);
-        SmartDashboard.putNumber("in method turret", turretAngle);
-        SmartDashboard.putNumber("BUNZ difference", difference);
-        SmartDashboard.putNumber("Turret/floored e1", e1RotationsFloored);
-        
+
         double rotation = (TurretConstants.GEAR_1_TOOTH_COUNT / TurretConstants.GEAR_0_TOOTH_COUNT) * 360.0;
 
         double a0 = turretAngle;
@@ -419,7 +410,6 @@ private double getSafeTargetAngle(double requestedAngle) {
         return MathUtil.clamp(requestedAngle, TurretConstants.minRotDeg, TurretConstants.maxRotDeg);
     }
 
-    SmartDashboard.putNumber("chosenDelta", chosenDelta);
     return MathUtil.clamp(
         chosenDelta + current,
         TurretConstants.minRotDeg,
@@ -463,21 +453,19 @@ private double getSafeTargetAngle(double requestedAngle) {
     return run(() -> {
         //  System.out.println(angleDegrees);
           double robotHeading = robotPose.get().getRotation().getDegrees();
-          SmartDashboard.putNumber("Robot Heading", robotHeading);
+
           double safeTarget = getSafeTargetAngle(angleDegrees + (robotHeading));
           System.out.println(safeTarget);
 
           double currentAngle = getPositionDegrees();
           double error = safeTarget - currentAngle;
           
-          SmartDashboard.putNumber("Turret/Safe Target", safeTarget);
-          SmartDashboard.putNumber("Turret/Current Angle", currentAngle);
 
           double velocityDegPerSec =
               Math.signum(error)
                   * Math.min(Math.abs(error) * 7.0, Units.radiansToDegrees(TurretConstants.maxVelocity));
           setVelocity(velocityDegPerSec);
-          System.out.println("Turret Velocity DEG-PER-SEC: " + velocityDegPerSec);
+
         })
         .until(
             () -> {

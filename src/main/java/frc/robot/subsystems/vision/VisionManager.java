@@ -57,9 +57,9 @@ public class VisionManager {
     this.drivetrain = drivetrain;
 
     LimelightHelpers.SetFiducialIDFiltersOverride(
-        Limelights.FRONT_RIGHT.name(), FieldConstants.Hub.HUB_TAGS);
+        Limelights.FRONT_LEFT.name(), FieldConstants.ALL_TAGS);
     LimelightHelpers.SetFiducialIDFiltersOverride(
-        Limelights.FRONT_RIGHT.name(), FieldConstants.Hub.HUB_TAGS);
+        Limelights.FRONT_RIGHT.name(), FieldConstants.ALL_TAGS);
   }
 
   private boolean rejectEstimate(PoseEstimate estimate, Limelight limelight) {

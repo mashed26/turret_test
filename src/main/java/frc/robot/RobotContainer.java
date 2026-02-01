@@ -19,6 +19,7 @@ import com.ctre.phoenix6.swerve.SwerveRequest;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.smartdashboard.Mechanism2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -33,6 +34,7 @@ import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.DrivetrainConstants;
 import frc.robot.subsystems.turret.TurretSubsytem;
 import frc.robot.subsystems.vision.Vision;
+import frc.robot.subsystems.vision.VisionManager;
 import lombok.Getter;
 
 public class RobotContainer {
@@ -69,6 +71,8 @@ public class RobotContainer {
 
     @Getter
     private final Subsystems subsystems = new Subsystems(drivetrain);
+    @Getter
+    private final VisionManager visionManager = new VisionManager(drivetrain);
 
     private final double HEIGHT = 0; // TODO: Find height of robot
 
@@ -123,13 +127,15 @@ public class RobotContainer {
         );
 
         // Swerve control
-        joystick.a().whileTrue(drivetrain.applyRequest(() -> brake));
-        joystick.b().whileTrue(drivetrain.applyRequest(() ->
-            point.withModuleDirection(new Rotation2d(-joystick.getLeftY(), -joystick.getLeftX()))
-        ));
+       // joystick.a().whileTrue(drivetrain.applyRequest(() -> brake));
+       // joystick.b().whileTrue(drivetrain.applyRequest(() ->
+        //    point.withModuleDirection(new Rotation2d(-joystick.getLeftY(), -joystick.getLeftX()))
+       // ));
 
-        joystick.x().whileTrue(new AutoAlign2(this, () -> drivetrain.getState().Pose , true));
-
+        joystick.x().whileTrue(new AutoAlign2(this, () -> new Pose2d(new Translation2d(1.005,5.310), new Rotation2d(Units.degreesToRadians(-180))) , true,0.05)
+            .andThen(new AutoAlign2(this,()-> new Pose2d(new Translation2d(1.005,4.600),new Rotation2d(Units.degreesToRadians(-180))), true)));
+        joystick.a().whileTrue(new AutoAlign2(this,()-> new Pose2d(new Translation2d(1.018,4.618),new Rotation2d(Units.degreesToRadians(-180))), true));
+        
         joystick.y().whileTrue(
         Commands.runOnce(() -> {
             capturedTargetAngle = getNearest45DegreeAngle(
@@ -182,6 +188,7 @@ public class RobotContainer {
         // Update vision subsystem with current turret angle
         vision.setTurretAngle(turret.getPositionDegrees());
         Supplier<Pose2d> robotPose = () -> drivetrain.getState().Pose;
+
 
         // SmartDashboard telemetry
         SmartDashboard.putNumber("Turret/Position", turret.getPositionDegrees());

@@ -28,9 +28,9 @@ public class AutoAlign2 extends Command {
   private boolean shouldEnd;
 
   private final ProfiledPIDController driveController =
-      new ProfiledPIDController(10.0, 0, 0.0, new Constraints(3.8, 4.0));
+      new ProfiledPIDController(11.0, 0, 0.0, new Constraints(3.8, 4.0));
   private final ProfiledPIDController headingController =
-      new ProfiledPIDController(9.5, 0, 0, new Constraints(Units.degreesToRadians(360.0), 8.0));
+      new ProfiledPIDController(11, 0, 0, new Constraints(Units.degreesToRadians(360.0), 8.0));
 
   private Supplier<Pose2d> targetPose;
 
@@ -47,7 +47,7 @@ public class AutoAlign2 extends Command {
   private final double ffMaxRadius = 0.4;
 
   private Timer rotateTimer = new Timer();
-  private double rotationWait = 0.5;
+  private double rotationWait = 0.0;
 
 
 
@@ -103,7 +103,7 @@ public class AutoAlign2 extends Command {
     Pose2d targetPose = this.targetPose.get();
 
     driveController.setConstraints(
-        new Constraints(40, 20));
+        new Constraints(0.1, 0.1));
 
     currentDistance = currentPose.getTranslation().getDistance(targetPose.getTranslation());
     double ffScalar =
@@ -172,7 +172,7 @@ public class AutoAlign2 extends Command {
   @Override
   public boolean isFinished() {
     return targetPose == null || (shouldEnd && Math.abs(driveErrorAbs) < driveTolerance &&
-     (Math.abs(drivetrain.getEstimatedPose().getRotation().getRadians() - targetPose.get().getRotation().getRadians()) < driveTolerance)
+     (Math.abs(drivetrain.getEstimatedPose().getRotation().getRadians() - targetPose.get().getRotation().getRadians()) < driveTolerance * 2)
      );
   }
 
