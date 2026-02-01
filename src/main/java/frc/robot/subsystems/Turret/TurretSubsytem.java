@@ -30,10 +30,14 @@ import edu.wpi.first.units.measure.*;
 import edu.wpi.first.wpilibj.simulation.BatterySim;
 import edu.wpi.first.wpilibj.simulation.RoboRioSim;
 import edu.wpi.first.wpilibj.simulation.SingleJointedArmSim;
+import edu.wpi.first.wpilibj.smartdashboard.Mechanism2d;
+import edu.wpi.first.wpilibj.smartdashboard.MechanismLigament2d;
+import edu.wpi.first.wpilibj.smartdashboard.MechanismRoot2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
+import frc.robot.Robot;
 import frc.robot.SimConstants;
 
 /** Pivot subsystem using TalonFX with Krakenx60 motor */
@@ -56,15 +60,28 @@ public class TurretSubsytem extends SubsystemBase {
   private final SingleJointedArmSim pivotSim;
   private Supplier<Pose2d> robotPose;
 
-  private final Ligament turretOne =
+  private final Ligament turretTwo =
     new Ligament()
       .withStaticLength(Length.fromInches(5.0))
         .withDynamicAngle( ()-> Rotation2d.fromDegrees(getPositionDegrees()));
+  
+  private final Ligament turretOne =
+    new Ligament()
+      .withStaticLength(Length.fromInches(5.0))
+        .withStaticAngle(Rotation2d.fromDegrees(90));
 
   public final Mechanism turretMech =
-      new Mechanism("Turret Mech", turretOne)
+      new Mechanism("Turret Mech", turretOne, turretTwo)
           .withStaticPosition(new Translation2d((SimConstants.MECH_WIDTH / 2.0) + Units.inchesToMeters(12.125), Units.inchesToMeters(15)));
 
+  public final Mechanism2d robotTest =
+    new Mechanism2d(1, 1);
+
+  public final MechanismRoot2d robotRoot =
+    robotTest.getRoot(getName(), 0.5, 0.5);
+  
+  public final MechanismLigament2d turret =
+    new MechanismLigament2d("turret", 0.4, 0.0);
   private final SysIdRoutine routine;
 
   /** Creates a new Pivot Subsystem. */
@@ -72,6 +89,8 @@ public class TurretSubsytem extends SubsystemBase {
     this.robotPose = robotPose;
 
     // Initialize motor controller
+    robotRoot.append(turret);
+    
     motor = new TalonFX(TurretConstants.canID);
     innerEncoder = new CANcoder(TurretConstants.CAN_INNER_ID);
     outerEncoder = new CANcoder(TurretConstants.CAN_OUTTER_ID);
@@ -129,6 +148,12 @@ public class TurretSubsytem extends SubsystemBase {
   /** Update simulation and telemetry. */
   @Override
   public void periodic() {
+    if(Robot.isSimulation()){
+      turret.setAngle(getPositionDegrees());
+
+      SmartDashboard.putData("turret mech",robotTest);
+    }
+
     BaseStatusSignal.refreshAll(
         positionSignal, velocitySignal, voltageSignal, statorCurrentSignal, temperatureSignal);
 
@@ -139,8 +164,6 @@ public class TurretSubsytem extends SubsystemBase {
     SmartDashboard.putNumber("Turret Inner Encoder Angle", Units.rotationsToDegrees(innerEncoder.getAbsolutePosition().getValueAsDouble()));
     SmartDashboard.putNumber("Turret Outer Encoder Angle", Units.rotationsToDegrees(outerEncoder.getAbsolutePosition().getValueAsDouble()));
     SmartDashboard.putNumber("Turret Velocity", getVelocity());
-
-
   }
 
   /** Update simulation. */

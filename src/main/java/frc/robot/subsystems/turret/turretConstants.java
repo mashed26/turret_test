@@ -112,16 +112,5 @@ public class TurretConstants {
 
     }
 
-      public static final SingleJointedArmSim SIM =
-      new SingleJointedArmSim(
-          DCMotor.getKrakenX60(1),
-          TURRET_REDUCTION,
-          0.0490209781964,
-          // 40
-          Units.inchesToMeters(100),
-          Units.degreesToRadians(-360),
-          Units.degreesToRadians(360),
-          true,
-          Math.PI / 2.0);
   public static final ScreamPIDConstants SIM_GAINS = new ScreamPIDConstants(50.0, 0.0, 50.0);
 }

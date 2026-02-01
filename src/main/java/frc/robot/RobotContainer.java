@@ -28,15 +28,23 @@ import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 
 import frc.robot.generated.TunerConstants;
+import frc.robot.subsystems.AutoAlign2;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.DrivetrainConstants;
 import frc.robot.subsystems.turret.TurretSubsytem;
 import frc.robot.subsystems.vision.Vision;
+import lombok.Getter;
 
 public class RobotContainer {
+
+      public record Subsystems(
+    CommandSwerveDrivetrain drivetrain
+  ) {}
     
     private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond);
     private double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond);
+
+
 
     private final SwerveRequest.FieldCentric drive = new SwerveRequest.FieldCentric()
             .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1)
@@ -59,11 +67,15 @@ public class RobotContainer {
     public final TurretSubsytem turret = new TurretSubsytem(() -> drivetrain.getState().Pose);
     public final Vision vision = new Vision(() -> drivetrain.getState().Pose);
 
+    @Getter
+    private final Subsystems subsystems = new Subsystems(drivetrain);
+
     private final double HEIGHT = 0; // TODO: Find height of robot
 
     private double targetDegrees = 0;
 
-     private final MechanismVisualizer mechVisualizer =
+     @SuppressWarnings("unused")
+    private final MechanismVisualizer mechVisualizer =
       new MechanismVisualizer(
           SimConstants.MEASURED_MECHANISM,
           SimConstants.SETPOINT_MECHANISM,
@@ -115,6 +127,8 @@ public class RobotContainer {
         joystick.b().whileTrue(drivetrain.applyRequest(() ->
             point.withModuleDirection(new Rotation2d(-joystick.getLeftY(), -joystick.getLeftX()))
         ));
+
+        joystick.x().whileTrue(new AutoAlign2(this, () -> drivetrain.getState().Pose , true));
 
         joystick.y().whileTrue(
         Commands.runOnce(() -> {
@@ -194,6 +208,7 @@ public class RobotContainer {
 
             SmartDashboard.putNumber("Trajectory/OptimalAngle", Trajectory.getOptimalAngle());
         }
+        
     }
 
     public static void telemeterizeMechanisms(Mechanism2d measured, Mechanism2d setpoint) {
@@ -208,4 +223,5 @@ public class RobotContainer {
             .withTimeout(5.0)
             .andThen(turret.stopCommand());
     }
+
 }
