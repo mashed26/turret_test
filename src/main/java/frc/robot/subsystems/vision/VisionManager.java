@@ -4,6 +4,10 @@
 
 package frc.robot.subsystems.vision;
 
+import com.teamscreamrobotics.util.Logger;
+import com.teamscreamrobotics.vision.LimelightHelpers;
+import com.teamscreamrobotics.vision.LimelightHelpers.PoseEstimate;
+import com.teamscreamrobotics.vision.LimelightVision.Limelight;
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
@@ -12,11 +16,6 @@ import edu.wpi.first.math.util.Units;
 import frc.robot.Dashboard;
 import frc.robot.constants.FieldConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
-
-import com.teamscreamrobotics.util.Logger;
-import com.teamscreamrobotics.vision.LimelightHelpers;
-import com.teamscreamrobotics.vision.LimelightHelpers.PoseEstimate;
-import com.teamscreamrobotics.vision.LimelightVision.Limelight;
 
 /** Add your docs here. */
 public class VisionManager {
@@ -29,7 +28,10 @@ public class VisionManager {
                 -0.262158,
                 0.313410,
                 0.098568,
-                new Rotation3d(Units.degreesToRadians(180), -Units.degreesToRadians(15.0), -Units.degreesToRadians(10.0))));
+                new Rotation3d(
+                    Units.degreesToRadians(180),
+                    -Units.degreesToRadians(15.0),
+                    -Units.degreesToRadians(10.0))));
     public static final Limelight FRONT_RIGHT =
         new Limelight(
             "limelight-right",
@@ -37,7 +39,10 @@ public class VisionManager {
                 0.262158,
                 0.313410,
                 0.098568,
-                new Rotation3d(Units.degreesToRadians(180), -Units.degreesToRadians(15.0), Units.degreesToRadians(10))));
+                new Rotation3d(
+                    Units.degreesToRadians(180),
+                    -Units.degreesToRadians(15.0),
+                    Units.degreesToRadians(10))));
   }
 
   private final CommandSwerveDrivetrain drivetrain;
@@ -93,7 +98,8 @@ public class VisionManager {
         0);
     // PoseEstimate mt2Estimate =
     // LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(limelight.name());
-    PoseEstimate mtEstimate = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(limelight.name());
+    PoseEstimate mtEstimate =
+        LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(limelight.name());
 
     boolean shouldUseMt1 = false; // !hasEnabled || Dashboard.disableMegatag2.get();
     /* boolean shouldUseMt2 =
@@ -106,9 +112,9 @@ public class VisionManager {
             (DriverStation.isDisabled() ? 0.2 : VisionConstants.xyStdBaseline) * stdFactor;
         double thetaStds =
             (DriverStation.isDisabled() ? 0.2 : VisionConstants.thetaStdBaseline) * stdFactor; */
-            double stdFactor = Math.pow(mtEstimate.avgTagDist, 2.4) / (mtEstimate.tagCount * 0.5);
-            double xyStds = VisionConstants.xyStdBaseline * stdFactor * VisionConstants.xyMt2StdFactor;
-            double thetaStds = VisionConstants.thetaStdBaseline * stdFactor;
+        double stdFactor = Math.pow(mtEstimate.avgTagDist, 2.4) / (mtEstimate.tagCount * 0.5);
+        double xyStds = VisionConstants.xyStdBaseline * stdFactor * VisionConstants.xyMt2StdFactor;
+        double thetaStds = VisionConstants.thetaStdBaseline * stdFactor;
         drivetrain.addVisionMeasurement(
             mtEstimate.pose,
             mtEstimate.timestampSeconds,
@@ -153,5 +159,4 @@ public class VisionManager {
       addGlobalPoseEstimate(ll);
     }
   }
-
 }

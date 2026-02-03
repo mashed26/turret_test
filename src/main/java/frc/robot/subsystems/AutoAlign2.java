@@ -4,6 +4,8 @@
 
 package frc.robot.subsystems;
 
+import com.teamscreamrobotics.util.GeomUtil;
+import com.teamscreamrobotics.util.Logger;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.geometry.Pose2d;
@@ -16,9 +18,6 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.RobotContainer;
 import java.util.function.Supplier;
-
-import com.teamscreamrobotics.util.GeomUtil;
-import com.teamscreamrobotics.util.Logger;
 
 public class AutoAlign2 extends Command {
 
@@ -48,8 +47,6 @@ public class AutoAlign2 extends Command {
 
   private Timer rotateTimer = new Timer();
   private double rotationWait = 0.0;
-
-
 
   public AutoAlign2(RobotContainer container, Supplier<Pose2d> pose, boolean shouldEnd) {
     this.container = container;
@@ -102,8 +99,7 @@ public class AutoAlign2 extends Command {
     Pose2d currentPose = drivetrain.getEstimatedPose();
     Pose2d targetPose = this.targetPose.get();
 
-    driveController.setConstraints(
-        new Constraints(0.1, 0.1));
+    driveController.setConstraints(new Constraints(0.1, 0.1));
 
     currentDistance = currentPose.getTranslation().getDistance(targetPose.getTranslation());
     double ffScalar =
@@ -171,9 +167,13 @@ public class AutoAlign2 extends Command {
 
   @Override
   public boolean isFinished() {
-    return targetPose == null || (shouldEnd && Math.abs(driveErrorAbs) < driveTolerance &&
-     (Math.abs(drivetrain.getEstimatedPose().getRotation().getRadians() - targetPose.get().getRotation().getRadians()) < driveTolerance * 2)
-     );
+    return targetPose == null
+        || (shouldEnd
+            && Math.abs(driveErrorAbs) < driveTolerance
+            && (Math.abs(
+                    drivetrain.getEstimatedPose().getRotation().getRadians()
+                        - targetPose.get().getRotation().getRadians())
+                < driveTolerance * 2));
   }
 
   public boolean hasReachedGoal() {

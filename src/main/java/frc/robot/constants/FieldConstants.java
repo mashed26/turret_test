@@ -16,7 +16,6 @@ import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.Filesystem;
 import frc.robot.Constants;
-
 import java.io.IOException;
 import java.nio.file.Path;
 import lombok.Getter;
@@ -37,10 +36,10 @@ public class FieldConstants {
   public static final AprilTagLayoutType defaultAprilTagType = AprilTagLayoutType.OFFICIAL;
 
   public static final int[] ALL_TAGS =
-      new int[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-         11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
-          21, 22, 23, 24, 25, 26, 27, 28, 29, 20,
-           31, 32};
+      new int[] {
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
+        26, 27, 28, 29, 20, 31, 32
+      };
 
   // Field dimensions
   public static final double fieldLength = AprilTagLayoutType.OFFICIAL.getLayout().getFieldLength();
@@ -95,12 +94,10 @@ public class FieldConstants {
   /** Hub related constants */
   public static class Hub {
 
-  public static final int[] BLUE_HUB_TAGS
-   = new int[] {18, 19, 20, 21, 24, 25, 26, 27};
-  public static final int[] RED_REEF_TAGS
-   = new int[] {2, 3, 4, 5, 8, 9, 10, 11};
-  public static final int[] HUB_TAGS
-   = new int[] {2, 3, 4, 5, 8, 9, 10, 11, 18, 19, 20, 21, 24, 25, 26, 27};
+    public static final int[] BLUE_HUB_TAGS = new int[] {18, 19, 20, 21, 24, 25, 26, 27};
+    public static final int[] RED_REEF_TAGS = new int[] {2, 3, 4, 5, 8, 9, 10, 11};
+    public static final int[] HUB_TAGS =
+        new int[] {2, 3, 4, 5, 8, 9, 10, 11, 18, 19, 20, 21, 24, 25, 26, 27};
 
     // Dimensions
     public static final double width = Units.inchesToMeters(47.0);
@@ -188,7 +185,7 @@ public class FieldConstants {
   }
 
   /** Right Bump related constants */
-  //NOT ORIGINAL
+  // NOT ORIGINAL
   public static class RightBump {
     // Dimensions
     public static final double width = Units.inchesToMeters(73.0);
@@ -198,7 +195,7 @@ public class FieldConstants {
     // Relevant reference points on alliance side
     public static final Translation2d nearLeftCorner =
         new Translation2d(LinesVertical.hubCenter + width / 2, Units.inchesToMeters(255));
-        
+
     public static final Translation2d nearRightCorner = Hub.nearLeftCorner;
     public static final Translation2d farLeftCorner =
         new Translation2d(LinesVertical.hubCenter - width / 2, Units.inchesToMeters(255));
@@ -235,7 +232,8 @@ public class FieldConstants {
         new Translation3d(LinesVertical.hubCenter, fieldWidth - openingWidth, openingHeight);
 
     public static final RectangularPoseArea leftTrench =
-        new RectangularPoseArea(openingTopLeft.toTranslation2d(), openingTopRight.toTranslation2d());
+        new RectangularPoseArea(
+            openingTopLeft.toTranslation2d(), openingTopRight.toTranslation2d());
 
     // Relevant reference points on opposing side
     public static final Translation3d oppOpeningTopLeft =
@@ -244,7 +242,8 @@ public class FieldConstants {
         new Translation3d(LinesVertical.oppHubCenter, fieldWidth - openingWidth, openingHeight);
 
     public static final RectangularPoseArea oppLeftTrench =
-        new RectangularPoseArea(oppOpeningTopLeft.toTranslation2d(), oppOpeningTopRight.toTranslation2d());
+        new RectangularPoseArea(
+            oppOpeningTopLeft.toTranslation2d(), oppOpeningTopRight.toTranslation2d());
   }
 
   public static class RightTrench {
@@ -263,16 +262,18 @@ public class FieldConstants {
         new Translation3d(LinesVertical.hubCenter, 0, openingHeight);
 
     public static final RectangularPoseArea rightTrench =
-        new RectangularPoseArea(openingTopLeft.toTranslation2d(), openingTopRight.toTranslation2d());
+        new RectangularPoseArea(
+            openingTopLeft.toTranslation2d(), openingTopRight.toTranslation2d());
 
     // Relevant reference points on opposing side
     public static final Translation3d oppOpeningTopLeft =
         new Translation3d(LinesVertical.oppHubCenter, openingWidth, openingHeight);
     public static final Translation3d oppOpeningTopRight =
         new Translation3d(LinesVertical.oppHubCenter, 0, openingHeight);
-        
+
     public static final RectangularPoseArea oppRightTrench =
-        new RectangularPoseArea(oppOpeningTopLeft.toTranslation2d(), oppOpeningTopRight.toTranslation2d());
+        new RectangularPoseArea(
+            oppOpeningTopLeft.toTranslation2d(), oppOpeningTopRight.toTranslation2d());
   }
 
   /** Tower related constants */

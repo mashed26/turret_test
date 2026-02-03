@@ -5,7 +5,6 @@
 package frc.robot;
 
 import com.teamscreamrobotics.util.Logger;
-
 import dev.doglog.DogLogOptions;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -19,7 +18,7 @@ public class Robot extends TimedRobot {
   public Robot() {
     m_robotContainer = new RobotContainer();
 
-        Logger.setOptions(
+    Logger.setOptions(
         new DogLogOptions()
             .withCaptureDs(true)
             .withCaptureNt(true)
@@ -31,7 +30,7 @@ public class Robot extends TimedRobot {
 
   @Override
   public void robotPeriodic() {
-    CommandScheduler.getInstance().run(); 
+    CommandScheduler.getInstance().run();
     m_robotContainer.periodic();
     m_robotContainer.getVisionManager().periodic();
   }
@@ -64,9 +63,7 @@ public class Robot extends TimedRobot {
   }
 
   @Override
-  public void teleopPeriodic() {
-    
-  }
+  public void teleopPeriodic() {}
 
   @Override
   public void teleopExit() {}

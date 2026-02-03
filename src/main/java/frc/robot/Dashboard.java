@@ -16,10 +16,11 @@ public class Dashboard {
   // Variables that can be adjusted within the dashboard, these are the variables that are used
   // within the code.
   public static DashboardBoolean disableAmbiguityRejection;
-  //public static DashboardBoolean disableCoralRequirement;
+  // public static DashboardBoolean disableCoralRequirement;
   public static DashboardBoolean disableAllVisionUpdates;
   public static DashboardBoolean useGlobalEstimateForAutoAlign;
-  //public static DashboardNumber autoScoreDistance;
+
+  // public static DashboardNumber autoScoreDistance;
 
   static {
     initialize();
@@ -27,11 +28,12 @@ public class Dashboard {
 
   public static void initialize() {
     // These are the variables that are created within the dashboard.
-    //disableCoralRequirement = new DashboardBoolean(overrides, "Disable Coral Requirement", false);
+    // disableCoralRequirement = new DashboardBoolean(overrides, "Disable Coral Requirement",
+    // false);
     disableAmbiguityRejection = new DashboardBoolean(vision, "Disable Ambiguity Rejection", false);
     disableAllVisionUpdates = new DashboardBoolean(vision, "Disable All Vision Updates", false);
     useGlobalEstimateForAutoAlign =
         new DashboardBoolean(vision, "Use Global Estimate For Auto Align", false);
-   // autoScoreDistance = new DashboardNumber(overrides, "Auto Score Distance", 0.03);
+    // autoScoreDistance = new DashboardNumber(overrides, "Auto Score Distance", 0.03);
   }
 }
