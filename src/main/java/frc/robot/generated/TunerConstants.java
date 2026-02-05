@@ -8,8 +8,10 @@ import com.ctre.phoenix6.hardware.*;
 import com.ctre.phoenix6.signals.*;
 import com.ctre.phoenix6.swerve.*;
 import com.ctre.phoenix6.swerve.SwerveModuleConstants.*;
+import com.teamscreamrobotics.data.Length;
 import com.teamscreamrobotics.pid.ScreamPIDConstants;
 import edu.wpi.first.math.Matrix;
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.units.measure.*;
@@ -233,6 +235,19 @@ public class TunerConstants {
               kInvertRightSide,
               kBackRightSteerMotorInverted,
               kBackRightEncoderInverted);
+
+  public static final Length frontWidth = Length.fromInches(28.25);
+  public static final Length backWidth = Length.fromInches(28.25);
+  public static final Length wheelBase = Length.fromInches(28); // Front to back
+
+  public static final Translation2d frontLeftPos =
+      new Translation2d(-frontWidth.getMeters() / 2.0, wheelBase.getMeters() / 2.0);
+  public static final Translation2d frontRightPos =
+      new Translation2d(frontWidth.getMeters() / 2.0, wheelBase.getMeters() / 2.0);
+  public static final Translation2d backLeftPos =
+      new Translation2d(-backWidth.getMeters() / 2.0, -wheelBase.getMeters() / 2.0);
+  public static final Translation2d backRightPos =
+      new Translation2d(backWidth.getMeters() / 2.0, -wheelBase.getMeters() / 2.0);
 
   /**
    * Creates a CommandSwerveDrivetrain instance. This should only be called once in your robot

@@ -16,7 +16,6 @@ import com.teamscreamrobotics.util.Logger;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.smartdashboard.Mechanism2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -25,7 +24,6 @@ import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 import frc.robot.generated.TunerConstants;
-import frc.robot.subsystems.AutoAlign2;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.DrivetrainConstants;
 import frc.robot.subsystems.turret.TurretSubsytem;
@@ -71,7 +69,6 @@ public class RobotContainer {
 
   private double targetDegrees = 0;
 
-  @SuppressWarnings("unused")
   private final MechanismVisualizer mechVisualizer =
       new MechanismVisualizer(
           SimConstants.MEASURED_MECHANISM,
@@ -130,35 +127,35 @@ public class RobotContainer {
     //    point.withModuleDirection(new Rotation2d(-joystick.getLeftY(), -joystick.getLeftX()))
     // ));
 
-    joystick
-        .x()
-        .whileTrue(
-            new AutoAlign2(
-                    this,
-                    () ->
-                        new Pose2d(
-                            new Translation2d(1.005, 5.310),
-                            new Rotation2d(Units.degreesToRadians(-180))),
-                    true,
-                    0.05)
-                .andThen(
-                    new AutoAlign2(
-                        this,
-                        () ->
-                            new Pose2d(
-                                new Translation2d(1.005, 4.600),
-                                new Rotation2d(Units.degreesToRadians(-180))),
-                        true)));
-    joystick
-        .a()
-        .whileTrue(
-            new AutoAlign2(
-                this,
-                () ->
-                    new Pose2d(
-                        new Translation2d(1.018, 4.618),
-                        new Rotation2d(Units.degreesToRadians(-180))),
-                true));
+    // joystick
+    //     .x()
+    //     .whileTrue(
+    //         new AutoAlign2(
+    //                 this,
+    //                 () ->
+    //                     new Pose2d(
+    //                         new Translation2d(1.005, 5.310),
+    //                         new Rotation2d(Units.degreesToRadians(-180))),
+    //                 true,
+    //                 0.05)
+    //             .andThen(
+    //                 new AutoAlign2(
+    //                     this,
+    //                     () ->
+    //                         new Pose2d(
+    //                             new Translation2d(1.005, 4.600),
+    //                             new Rotation2d(Units.degreesToRadians(-180))),
+    //                     true)));
+    // joystick
+    //     .a()
+    //     .whileTrue(
+    //         new AutoAlign2(
+    //             this,
+    //             () ->
+    //                 new Pose2d(
+    //                     new Translation2d(1.018, 4.618),
+    //                     new Rotation2d(Units.degreesToRadians(-180))),
+    //             true));
 
     joystick
         .y()
@@ -225,31 +222,31 @@ public class RobotContainer {
     Supplier<Pose2d> robotPose = () -> drivetrain.getState().Pose;
 
     // SmartDashboard telemetry
-    SmartDashboard.putNumber("Turret/Position", turret.getPositionDegrees());
-    SmartDashboard.putNumber("Turret/Velocity", turret.getVelocity());
-    SmartDashboard.putNumber("Turret/Current", turret.getCurrent());
-    SmartDashboard.putNumber("Turret/Target", targetDegrees);
-
-    SmartDashboard.putString("Vision/Info", vision.getTrackingInfo());
-    SmartDashboard.putNumber("Vision/DesiredAngle", vision.getDesiredAngle());
-    SmartDashboard.putBoolean("Vision/HasTarget", vision.hasTarget());
-    SmartDashboard.putNumber("Vision/Distance", vision.getDistanceToTarget());
-
-    SmartDashboard.putNumber("RobotHeading", robotPose.get().getRotation().getDegrees());
-    SmartDashboard.putNumber(
-        "Snap/Nearest45", getNearest45DegreeAngle(robotPose.get().getRotation().getDegrees()));
+    // SmartDashboard.putNumber("Turret/Position", turret.getPositionDegrees());
+    // SmartDashboard.putNumber("Turret/Velocity", turret.getVelocity());
+    // SmartDashboard.putNumber("Turret/Current", turret.getCurrent());
+    // SmartDashboard.putNumber("Turret/Target", targetDegrees);
+// 
+    // SmartDashboard.putString("Vision/Info", vision.getTrackingInfo());
+    // SmartDashboard.putNumber("Vision/DesiredAngle", vision.getDesiredAngle());
+    // SmartDashboard.putBoolean("Vision/HasTarget", vision.hasTarget());
+    // SmartDashboard.putNumber("Vision/Distance", vision.getDistanceToTarget());
+// 
+    // SmartDashboard.putNumber("RobotHeading", robotPose.get().getRotation().getDegrees());
+    // SmartDashboard.putNumber(
+    //     "Snap/Nearest45", getNearest45DegreeAngle(robotPose.get().getRotation().getDegrees()));
 
     // Trajectory calculations
-    if (vision.hasTarget()) {
-      Trajectory.configure()
-          .setGamePiece(GamePiece.FUEL)
-          .setInitialHeight(HEIGHT)
-          .setShotVelocity(5)
-          .setTargetDistance(vision.getDistanceToTarget())
-          .setTargetHeight(Trajectory.HUB_HEIGHT);
-
-      SmartDashboard.putNumber("Trajectory/OptimalAngle", Trajectory.getOptimalAngle());
-    }
+    // if (vision.hasTarget()) {
+    //   Trajectory.configure()
+    //       .setGamePiece(GamePiece.FUEL)
+    //       .setInitialHeight(HEIGHT)
+    //       .setShotVelocity(5)
+    //       .setTargetDistance(vision.getDistanceToTarget())
+    //       .setTargetHeight(Trajectory.HUB_HEIGHT);
+// 
+    //   SmartDashboard.putNumber("Trajectory/OptimalAngle", Trajectory.getOptimalAngle());
+    // }
   }
 
   public static void telemeterizeMechanisms(Mechanism2d measured, Mechanism2d setpoint) {

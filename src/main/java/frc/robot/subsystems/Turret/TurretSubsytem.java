@@ -36,8 +36,6 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.Robot;
 import frc.robot.SimConstants;
-import frc.robot.subsystems.vision.VisionManager;
-
 import java.util.function.Supplier;
 
 /** Pivot subsystem using TalonFX with Krakenx60 motor */
@@ -435,7 +433,7 @@ public class TurretSubsytem extends SubsystemBase {
     return run(() -> {
           // System.out.println(angleDegrees);
           double safeTarget = getSafeTargetAngle(angleDegrees);
-          System.out.println(safeTarget);
+          // System.out.println(safeTarget);
 
           double currentAngle = getPositionDegrees();
           double error = safeTarget - currentAngle;
@@ -469,7 +467,7 @@ public class TurretSubsytem extends SubsystemBase {
           double robotHeading = robotPose.get().getRotation().getDegrees();
 
           double safeTarget = getSafeTargetAngle(angleDegrees + (robotHeading));
-          System.out.println(safeTarget);
+          // System.out.println(safeTarget);
 
           double currentAngle = getPositionDegrees();
           double error = safeTarget - currentAngle;
