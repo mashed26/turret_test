@@ -64,16 +64,7 @@ public class RobotContainer {
   @Getter private final Subsystems subsystems = new Subsystems(drivetrain);
   @Getter private final VisionManager visionManager = new VisionManager(drivetrain);
 
-  private final double HEIGHT = 0; // TODO: Find height of robot
-
   private double targetDegrees = 0;
-
-  private final MechanismVisualizer mechVisualizer =
-      new MechanismVisualizer(
-          SimConstants.MEASURED_MECHANISM,
-          SimConstants.SETPOINT_MECHANISM,
-          RobotContainer::telemeterizeMechanisms,
-          turret.turretMech);
 
   public RobotContainer() {
     configureBindings();
@@ -260,7 +251,16 @@ public class RobotContainer {
     //   SmartDashboard.putNumber("Trajectory/OptimalAngle", Trajectory.getOptimalAngle());
     // }
 
-    Logger.log("Turret Pose", new Pose3d(robotPose.get().getX(), robotPose.get().getY(), 0.5, new Rotation3d(0, 0, robotPose.get().getRotation().getRadians() + turret.getAngle().getRadians())));
+    Logger.log(
+        "Turret Pose",
+        new Pose3d(
+            robotPose.get().getX(),
+            robotPose.get().getY(),
+            0.5,
+            new Rotation3d(
+                0,
+                0,
+                robotPose.get().getRotation().getRadians() + turret.getAngle().getRadians())));
   }
 
   public static void telemeterizeMechanisms(Mechanism2d measured, Mechanism2d setpoint) {

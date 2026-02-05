@@ -71,6 +71,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
               output -> setControl(m_translationCharacterization.withVolts(output)), null, this));
 
   /* SysId routine for characterizing steer. This is used to find PID gains for the steer motors. */
+  @SuppressWarnings("unused")
   private final SysIdRoutine m_sysIdRoutineSteer =
       new SysIdRoutine(
           new SysIdRoutine.Config(
@@ -87,6 +88,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
    * This is used to find PID gains for the FieldCentricFacingAngle HeadingController.
    * See the documentation of SwerveRequest.SysIdSwerveRotation for info on importing the log to SysId.
    */
+  @SuppressWarnings("unused")
   private final SysIdRoutine m_sysIdRoutineRotation =
       new SysIdRoutine(
           new SysIdRoutine.Config(
