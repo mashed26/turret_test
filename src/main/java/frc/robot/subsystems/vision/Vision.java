@@ -27,7 +27,7 @@ public class Vision extends SubsystemBase {
           new Rotation3d(0.0, 0.785398163, 0.0) // roll, pitch, yaw in radians
           );
 
-  private double currentTurretAngle = 0.0; // Current turret angle in degrees
+  private Rotation2d currentTurretAngle = Rotation2d.kZero; // Current turret angle in degrees
   private Supplier<Pose2d> robotPoseSupplier;
 
   public Vision(Supplier<Pose2d> robotPoseSupplier) {
@@ -48,14 +48,14 @@ public class Vision extends SubsystemBase {
       LimelightVision.setThrottle(0, limelight);
     }
 
-    SmartDashboard.putNumber("angle", getDesiredAngle());
+    SmartDashboard.putNumber("angle", getDesiredAngle().getDegrees());
   }
 
-  public void setTurretAngle(double angle) {
+  public void setTurretAngle(Rotation2d angle) {
     this.currentTurretAngle = angle;
   }
 
-  public double getTurretAngle() {
+  public Rotation2d getTurretAngle() {
     return currentTurretAngle;
   }
 
@@ -67,7 +67,7 @@ public class Vision extends SubsystemBase {
    * Get the desired turret angle to point at the AprilTag Use this with
    * turret.moveToAngleCommand(vision.getDesiredAngle())
    */
-  public double getDesiredAngle() {
+  public Rotation2d getDesiredAngle() {
     if (!hasTarget()) {
       return currentTurretAngle; // Hold current position if no target
     }
@@ -85,7 +85,7 @@ public class Vision extends SubsystemBase {
     double angleToTargetDegrees = Math.toDegrees(angleToTargetRadians);
 
     // The turret angle is relative to the robot's forward direction
-    return angleToTargetDegrees;
+    return Rotation2d.fromDegrees(angleToTargetDegrees);
   }
 
   /** Get the field-relative position of the AprilTag target */
@@ -116,24 +116,24 @@ public class Vision extends SubsystemBase {
   }
 
   /** Get the error between current turret angle and desired angle */
-  public double getTurretAngleError() {
+  public Rotation2d getTurretAngleError() {
     if (!hasTarget()) {
-      return 0.0;
+      return Rotation2d.kZero;
     }
 
-    double desiredAngle = getDesiredAngle();
-    double error = desiredAngle - currentTurretAngle;
+    double desiredAngle = getDesiredAngle().getDegrees();
+    double error = desiredAngle - currentTurretAngle.getDegrees();
 
     // Normalize to -180 to 180 degrees
     while (error > 180) error -= 360;
     while (error < -180) error += 360;
 
-    return error;
+    return Rotation2d.fromDegrees(error);
   }
 
   /** Check if the turret is aimed at the target (within tolerance) */
   public boolean isTurretAimed(double toleranceDegrees) {
-    return hasTarget() && Math.abs(getTurretAngleError()) < toleranceDegrees;
+    return hasTarget() && Math.abs(getTurretAngleError().getDegrees()) < toleranceDegrees;
   }
 
   public double getDistanceToTarget() {
@@ -161,7 +161,7 @@ public class Vision extends SubsystemBase {
   }
 
   /** Get the angle from the robot to the target (robot-relative) */
-  public double getAngleToTarget() {
+  public Rotation2d getAngleToTarget() {
     return getDesiredAngle();
   }
 

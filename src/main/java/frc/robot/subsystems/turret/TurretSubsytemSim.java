@@ -12,7 +12,7 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 /** Visualization for the pivot subsystem in simulation. */
 public class TurretSubsytemSim extends SubsystemBase {
 
-  private final TurretSubsytem pivot;
+  private final TurretSubsystem pivot;
 
   // Simulation display
   private final Mechanism2d mech;
@@ -30,7 +30,7 @@ public class TurretSubsytemSim extends SubsystemBase {
    *
    * @param pivotSubsystem The pivot subsystem to visualize
    */
-  public TurretSubsytemSim(TurretSubsytem pivotSubsystem) {
+  public TurretSubsytemSim(TurretSubsystem pivotSubsystem) {
     this.pivot = pivotSubsystem;
 
     // Create the simulation display
@@ -60,14 +60,13 @@ public class TurretSubsytemSim extends SubsystemBase {
   @Override
   public void periodic() {
     // Update pivot angle
-    double currentAngleRad = pivot.getSimulation().getAngleRads();
+    double currentAngleRad = pivot.getAngle().getRadians();
     pivotMech.setAngle(Units.radiansToDegrees(currentAngleRad));
 
     // Add telemetry data
     SmartDashboard.putNumber("Pivot Angle (deg)", Units.radiansToDegrees(currentAngleRad));
     SmartDashboard.putNumber(
         "Pivot Velocity (deg/s)",
-        Units.radiansToDegrees(pivot.getSimulation().getVelocityRadPerSec()));
-    SmartDashboard.putNumber("Pivot Current (A)", pivot.getSimulation().getCurrentDrawAmps());
+        Units.radiansToDegrees(Units.rotationsToRadians(pivot.getVelocity())));
   }
 }

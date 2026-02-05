@@ -118,7 +118,6 @@ public class FieldConstants {
             fieldWidth / 2.0,
             innerHeight);
 
-
     public static final Translation2d nearLeftCorner =
         new Translation2d(topCenterPoint.getX() - width / 2.0, fieldWidth / 2.0 + width / 2.0);
     public static final Translation2d nearRightCorner =
@@ -129,7 +128,6 @@ public class FieldConstants {
         new Translation2d(topCenterPoint.getX() + width / 2.0, fieldWidth / 2.0 - width / 2.0);
 
     public static final Translation2d hubCenter = nearLeftCorner.interpolate(farRightCorner, 0.5);
-
 
     // Relevant reference points on the opposite side
     public static final Translation3d oppTopCenterPoint =
@@ -146,7 +144,8 @@ public class FieldConstants {
     public static final Translation2d oppFarRightCorner =
         new Translation2d(oppTopCenterPoint.getX() + width / 2.0, fieldWidth / 2.0 - width / 2.0);
 
-    public static final Translation2d oppHubCenter = oppNearLeftCorner.interpolate(oppFarRightCorner, 0.5);
+    public static final Translation2d oppHubCenter =
+        oppNearLeftCorner.interpolate(oppFarRightCorner, 0.5);
 
     // Hub faces
     public static final Pose2d nearFace =

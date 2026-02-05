@@ -4,12 +4,8 @@
 
 package frc.robot;
 
-import static edu.wpi.first.units.Units.Rotation;
-
 import com.teamscreamrobotics.util.Logger;
 import dev.doglog.DogLogOptions;
-import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.Threads;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;

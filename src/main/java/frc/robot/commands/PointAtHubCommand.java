@@ -5,16 +5,16 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.constants.FieldConstants;
-import frc.robot.subsystems.turret.TurretSubsytem;
+import frc.robot.subsystems.turret.TurretSubsystem;
 import java.util.function.Supplier;
 
 /**
- * Command to point the turret at the hub center using field-relative positioning.
- * This command continuously tracks the hub and adjusts the turret angle based on
- * the robot's current pose on the field.
+ * Command to point the turret at the hub center using field-relative positioning. This command
+ * continuously tracks the hub and adjusts the turret angle based on the robot's current pose on the
+ * field.
  */
 public class PointAtHubCommand extends Command {
-  private final TurretSubsytem turret;
+  private final TurretSubsystem turret;
   private final Supplier<Pose2d> robotPoseSupplier;
   private final Translation2d targetPosition;
 
@@ -24,7 +24,7 @@ public class PointAtHubCommand extends Command {
    * @param turret The turret subsystem
    * @param robotPoseSupplier Supplier for the robot's current pose
    */
-  public PointAtHubCommand(TurretSubsytem turret, Supplier<Pose2d> robotPoseSupplier) {
+  public PointAtHubCommand(TurretSubsystem turret, Supplier<Pose2d> robotPoseSupplier) {
     this(turret, robotPoseSupplier, FieldConstants.Hub.topCenterPoint.toTranslation2d());
   }
 
@@ -36,7 +36,7 @@ public class PointAtHubCommand extends Command {
    * @param targetPosition The target position on the field to aim at
    */
   public PointAtHubCommand(
-      TurretSubsytem turret, Supplier<Pose2d> robotPoseSupplier, Translation2d targetPosition) {
+      TurretSubsystem turret, Supplier<Pose2d> robotPoseSupplier, Translation2d targetPosition) {
     this.turret = turret;
     this.robotPoseSupplier = robotPoseSupplier;
     this.targetPosition = targetPosition;
@@ -65,15 +65,15 @@ public class PointAtHubCommand extends Command {
 
     // Use the trackAngleCommand's logic to continuously update
     double safeTarget = getSafeTargetAngle(targetAngleDegrees);
-    turret.setAngle(safeTarget);
+    turret.setSetpointMotionMagicPosition(safeTarget);
   }
 
   /**
-   * Helper method to get a safe target angle (borrowed from TurretSubsytem logic).
-   * This ensures the turret doesn't exceed its physical limits.
+   * Helper method to get a safe target angle (borrowed from TurretSubsytem logic). This ensures the
+   * turret doesn't exceed its physical limits.
    */
   private double getSafeTargetAngle(double requestedAngle) {
-    double current = turret.getPositionDegrees();
+    double current = turret.getAngle().getDegrees();
 
     // Normalize to [-180, 180]
     double delta = normalizeAngle(requestedAngle - current);
@@ -86,10 +86,14 @@ public class PointAtHubCommand extends Command {
     double endCCW = current + pathCCW;
 
     boolean cwValid =
-        isWithinLimits(endCW, frc.robot.subsystems.turret.TurretConstants.MIN_ROT_DEG,
+        isWithinLimits(
+            endCW,
+            frc.robot.subsystems.turret.TurretConstants.MIN_ROT_DEG,
             frc.robot.subsystems.turret.TurretConstants.MAX_ROT_DEG);
     boolean ccwValid =
-        isWithinLimits(endCCW, frc.robot.subsystems.turret.TurretConstants.MIN_ROT_DEG,
+        isWithinLimits(
+            endCCW,
+            frc.robot.subsystems.turret.TurretConstants.MIN_ROT_DEG,
             frc.robot.subsystems.turret.TurretConstants.MAX_ROT_DEG);
 
     double chosenDelta;

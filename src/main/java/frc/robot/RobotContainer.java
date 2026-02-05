@@ -6,19 +6,16 @@ package frc.robot;
 
 import static edu.wpi.first.units.Units.*;
 
-import com.ctre.phoenix6.SignalLogger;
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import com.teamscreamrobotics.dashboard.MechanismVisualizer;
-import com.teamscreamrobotics.physics.Trajectory;
-import com.teamscreamrobotics.physics.Trajectory.GamePiece;
 import com.teamscreamrobotics.util.Logger;
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.units.Units;
 import edu.wpi.first.wpilibj.smartdashboard.Mechanism2d;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
@@ -27,7 +24,8 @@ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.DrivetrainConstants;
-import frc.robot.subsystems.turret.TurretSubsytem;
+import frc.robot.subsystems.turret.TurretConstants;
+import frc.robot.subsystems.turret.TurretSubsystem;
 import frc.robot.subsystems.vision.Vision;
 import frc.robot.subsystems.vision.VisionManager;
 import java.util.function.Supplier;
@@ -60,7 +58,7 @@ public class RobotContainer {
   private final CommandXboxController joystick = new CommandXboxController(0);
 
   public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
-  public final TurretSubsytem turret = new TurretSubsytem(() -> drivetrain.getState().Pose);
+  public final TurretSubsystem turret = new TurretSubsystem(TurretConstants.TURRET_CONFIG);
   public final Vision vision = new Vision(() -> drivetrain.getState().Pose);
 
   @Getter private final Subsystems subsystems = new Subsystems(drivetrain);
@@ -158,9 +156,12 @@ public class RobotContainer {
     //                     new Rotation2d(Units.degreesToRadians(-180))),
     //             true));
 
-    joystick.leftTrigger().whileTrue(turret.pointAtOpposingHubCenter());
+    joystick.a().whileTrue(turret.pointAtHubCenter(() -> drivetrain.getEstimatedPose()));
 
-    joystick.rightBumper().whileTrue(turret.moveToAngleCommandFR(Rotation2d.kCW_90deg));
+    joystick
+        .rightBumper()
+        .whileTrue(
+            turret.moveToAngleCommandFR(Rotation2d.kCW_90deg, () -> drivetrain.getHeading()));
 
     joystick
         .y()
@@ -187,13 +188,19 @@ public class RobotContainer {
     // joystick.rightTrigger().onTrue(turret.moveToAngleCommandFR(270));
     // joystick.leftTrigger().onTrue(turret.moveToAngleCommandFR(-270));
 
-    joystick.rightBumper().whileTrue(turret.manualControlCommand(() -> -joystick.getRightY()));
+    joystick
+        .rightBumper()
+        .whileTrue(turret.applyVoltageCommand(() -> (-joystick.getRightY() * 12.0)));
 
     // POV controls for incremental angle adjustment
     joystick.povUp().onTrue(Commands.runOnce(() -> targetDegrees += 10));
     joystick.povDown().onTrue(Commands.runOnce(() -> targetDegrees -= 10));
-    joystick.povLeft().onTrue(turret.moveToAngleCommandRR(targetDegrees));
-    joystick.povRight().onTrue(turret.moveToAngleCommandRR(0)); // Reset to forward
+    joystick
+        .povLeft()
+        .onTrue(turret.moveToAngleCommandRR(() -> Rotation2d.fromDegrees(targetDegrees)));
+    joystick
+        .povRight()
+        .onTrue(turret.moveToAngleCommandRR(() -> Rotation2d.kZero)); // Reset to forward
 
     // SysId routines
     /*
@@ -223,7 +230,7 @@ public class RobotContainer {
 
   public void periodic() {
     // Update vision subsystem with current turret angle
-    vision.setTurretAngle(turret.getPositionDegrees());
+    vision.setTurretAngle(turret.getAngle());
     Supplier<Pose2d> robotPose = () -> drivetrain.getState().Pose;
 
     // SmartDashboard telemetry
@@ -231,12 +238,12 @@ public class RobotContainer {
     // SmartDashboard.putNumber("Turret/Velocity", turret.getVelocity());
     // SmartDashboard.putNumber("Turret/Current", turret.getCurrent());
     // SmartDashboard.putNumber("Turret/Target", targetDegrees);
-// 
+    //
     // SmartDashboard.putString("Vision/Info", vision.getTrackingInfo());
     // SmartDashboard.putNumber("Vision/DesiredAngle", vision.getDesiredAngle());
     // SmartDashboard.putBoolean("Vision/HasTarget", vision.hasTarget());
     // SmartDashboard.putNumber("Vision/Distance", vision.getDistanceToTarget());
-// 
+    //
     // SmartDashboard.putNumber("RobotHeading", robotPose.get().getRotation().getDegrees());
     // SmartDashboard.putNumber(
     //     "Snap/Nearest45", getNearest45DegreeAngle(robotPose.get().getRotation().getDegrees()));
@@ -249,9 +256,11 @@ public class RobotContainer {
     //       .setShotVelocity(5)
     //       .setTargetDistance(vision.getDistanceToTarget())
     //       .setTargetHeight(Trajectory.HUB_HEIGHT);
-// 
+    //
     //   SmartDashboard.putNumber("Trajectory/OptimalAngle", Trajectory.getOptimalAngle());
     // }
+
+    Logger.log("Turret Pose", new Pose3d(robotPose.get().getX(), robotPose.get().getY(), 0.5, new Rotation3d(0, 0, robotPose.get().getRotation().getRadians() + turret.getAngle().getRadians())));
   }
 
   public static void telemeterizeMechanisms(Mechanism2d measured, Mechanism2d setpoint) {
@@ -262,8 +271,8 @@ public class RobotContainer {
   public Command getAutonomousCommand() {
     // Example auto command: Track target for 5 seconds
     return turret
-        .trackAngleCommand(() -> vision.getDesiredAngle())
+        .moveToAngleCommandRR(() -> vision.getDesiredAngle())
         .withTimeout(5.0)
-        .andThen(turret.stopCommand());
+        .andThen(Commands.runOnce(() -> turret.stop()));
   }
 }
