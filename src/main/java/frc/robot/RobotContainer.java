@@ -16,6 +16,7 @@ import com.teamscreamrobotics.util.Logger;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.units.Units;
 import edu.wpi.first.wpilibj.smartdashboard.Mechanism2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -157,6 +158,10 @@ public class RobotContainer {
     //                     new Rotation2d(Units.degreesToRadians(-180))),
     //             true));
 
+    joystick.leftTrigger().whileTrue(turret.pointAtOpposingHubCenter());
+
+    joystick.rightBumper().whileTrue(turret.moveToAngleCommandFR(Rotation2d.kCW_90deg));
+
     joystick
         .y()
         .whileTrue(
@@ -179,8 +184,8 @@ public class RobotContainer {
                                     DrivetrainConstants.HEADING_CONTROLLER_PROFILED)))
                 .beforeStarting(() -> drivetrain.resetHeadingController()));
 
-    joystick.rightTrigger().onTrue(turret.moveToAngleCommandFR(270));
-    joystick.leftTrigger().onTrue(turret.moveToAngleCommandFR(-270));
+    // joystick.rightTrigger().onTrue(turret.moveToAngleCommandFR(270));
+    // joystick.leftTrigger().onTrue(turret.moveToAngleCommandFR(-270));
 
     joystick.rightBumper().whileTrue(turret.manualControlCommand(() -> -joystick.getRightY()));
 
@@ -197,14 +202,14 @@ public class RobotContainer {
     joystick.start().and(joystick.y()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
     joystick.start().and(joystick.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
     */
-    joystick
-        .start()
-        .and(joystick.leftBumper())
-        .onTrue(Commands.runOnce(() -> SignalLogger.start()));
-    joystick
-        .start()
-        .and(joystick.rightBumper())
-        .onTrue(Commands.runOnce(() -> SignalLogger.stop()));
+    // joystick
+    //     .start()
+    //     .and(joystick.leftBumper())
+    //     .onTrue(Commands.runOnce(() -> SignalLogger.start()));
+    // joystick
+    //     .start()
+    //     .and(joystick.rightBumper())
+    //     .onTrue(Commands.runOnce(() -> SignalLogger.stop()));
     joystick.back().and(joystick.y()).whileTrue(turret.sysIdDynamic(Direction.kForward));
     joystick.back().and(joystick.x()).whileTrue(turret.sysIdDynamic(Direction.kReverse));
     joystick.start().and(joystick.y()).whileTrue(turret.sysIdQuasistatic(Direction.kForward));

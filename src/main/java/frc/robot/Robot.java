@@ -4,8 +4,13 @@
 
 package frc.robot;
 
+import static edu.wpi.first.units.Units.Rotation;
+
 import com.teamscreamrobotics.util.Logger;
 import dev.doglog.DogLogOptions;
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.wpilibj.Threads;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
@@ -26,6 +31,8 @@ public class Robot extends TimedRobot {
             .withNtPublish(true)
             .withLogEntryQueueCapacity(2000));
     Logger.setEnabled(true);
+
+    Threads.setCurrentThreadPriority(true, 10);
   }
 
   @Override

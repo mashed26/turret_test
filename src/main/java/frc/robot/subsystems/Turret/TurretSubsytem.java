@@ -17,6 +17,8 @@ import com.ctre.phoenix6.hardware.TalonFX;
 import com.teamscreamrobotics.dashboard.Ligament;
 import com.teamscreamrobotics.dashboard.Mechanism;
 import com.teamscreamrobotics.data.Length;
+import com.teamscreamrobotics.math.ScreamMath;
+
 import edu.wpi.first.epilogue.Logged;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Pose2d;
@@ -461,34 +463,45 @@ public class TurretSubsytem extends SubsystemBase {
    * @param angleDegrees The target angle in degrees
    * @return A command that moves turret to a specific angle field relitive
    */
-  public Command moveToAngleCommandFR(double angleDegrees) {
+  public Command moveToAngleCommandFR(Supplier<Rotation2d> angle) {
     return run(() -> {
           //  System.out.println(angleDegrees);
           double robotHeading = robotPose.get().getRotation().getDegrees();
 
-          double safeTarget = getSafeTargetAngle(angleDegrees + (robotHeading));
+          double safeTarget = getSafeTargetAngle(angle.get().getDegrees() + (robotHeading));
           // System.out.println(safeTarget);
+          setAngle(safeTarget);
 
-          double currentAngle = getPositionDegrees();
+          /* double currentAngle = getPositionDegrees();
           double error = safeTarget - currentAngle;
 
           double velocityDegPerSec =
               Math.signum(error)
                   * Math.min(
                       Math.abs(error) * 7.0, Units.radiansToDegrees(TurretConstants.MAX_VEL));
-          setVelocity(velocityDegPerSec);
-        })
-        .until(
+          setVelocity(velocityDegPerSec); */
+        });
+        /* .until(
             () -> {
               // Calculates the shortest safe path to get to the target.
               // double robotHeading = robotPose.get().getRotation().getDegrees();
-              double safeTarget = getSafeTargetAngle(angleDegrees);
+              double safeTarget = getSafeTargetAngle(angle.get().getDegrees());
               // double currentAngle = getPositionDegrees();
               //  System.out.println(safeTarget);
 
               return Math.abs(safeTarget) < 2.0; // 2 degree tolerance
             })
-        .finallyDo(interrupted -> setVelocity(0));
+        .finallyDo(interrupted -> setVelocity(0)); */
+  }
+
+  /**
+   * Creates a command to move the turret to a specific angle field relitive.
+   *
+   * @param angleDegrees The target angle in degrees
+   * @return A command that moves turret to a specific angle field relitive
+   */
+  public Command moveToAngleCommandFR(Rotation2d angle) {
+    return moveToAngleCommandFR(() -> angle);
   }
 
   /**
@@ -562,4 +575,68 @@ public class TurretSubsytem extends SubsystemBase {
   public Command sysIdDynamic(SysIdRoutine.Direction direction) {
     return routine.dynamic(direction);
   }
+
+  public Command pointAtFieldPosition(Translation2d targetPosition) {
+    return moveToAngleCommandFR(() -> ScreamMath.calculateAngleToPoint(robotPose.get().getTranslation(), targetPosition));
+  /* return run(() -> {
+        // Get current robot pose
+        Pose2d robotPose = this.robotPose.get();
+        Translation2d robotTranslation = robotPose.getTranslation();
+        Rotation2d robotHeading = robotPose.getRotation();
+
+        // Calculate the absolute field angle to the target
+        Rotation2d absoluteAngleToTarget = ScreamMath.calculateAngleToPoint(robotTranslation, targetPosition);
+
+        // Calculate the robot-relative angle
+        // This is the angle the turret needs to point relative to the robot's forward direction
+        Rotation2d robotRelativeAngle = absoluteAngleToTarget.minus(robotHeading);
+
+        // Get safe target and set angle
+        double targetAngleDegrees = robotRelativeAngle.getDegrees();
+        double safeTarget = getSafeTargetAngle(targetAngleDegrees);
+        setAngle(safeTarget);
+      })
+      .withName("PointAtFieldPosition"); */
+}
+
+/**
+ * Creates a command to point the turret at the hub center.
+ * Uses the hub center position from FieldConstants.
+ *
+ * @return A command that points the turret at the hub center
+ */
+public Command pointAtHubCenter() {
+  return pointAtFieldPosition(
+      frc.robot.constants.FieldConstants.Hub.hubCenter)
+      .withName("PointAtHubCenter");
+}
+
+/**
+ * Creates a command to point the turret at the opposing hub center.
+ * Uses the opposing hub center position from FieldConstants.
+ *
+ * @return A command that points the turret at the opposing hub center
+ */
+public Command pointAtOpposingHubCenter() {
+  return pointAtFieldPosition(
+      frc.robot.constants.FieldConstants.Hub.oppHubCenter)
+      .withName("PointAtOpposingHubCenter");
+}
+
+public double calculateAngleToFieldPosition(Translation2d targetPosition) {
+  Pose2d robotPose = this.robotPose.get();
+  Translation2d robotTranslation = robotPose.getTranslation();
+  Rotation2d robotHeading = robotPose.getRotation();
+
+  // Calculate vector from robot to target
+  Translation2d toTarget = targetPosition.minus(robotTranslation);
+
+  // Calculate the absolute field angle to the target
+  Rotation2d absoluteAngleToTarget = new Rotation2d(toTarget.getX(), toTarget.getY());
+
+  // Calculate the robot-relative angle
+  Rotation2d robotRelativeAngle = absoluteAngleToTarget.minus(robotHeading);
+
+  return robotRelativeAngle.getDegrees();
+}
 }
