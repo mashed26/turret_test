@@ -16,6 +16,7 @@ import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.smartdashboard.Mechanism2d;
 import edu.wpi.first.wpilibj.smartdashboard.MechanismLigament2d;
@@ -70,8 +71,12 @@ public class TurretSubsystem extends TalonFXSubsystem {
         new EasyCRTConfig(
                 () -> Rotations.of(innerEncoder.getAbsolutePosition().getValueAsDouble()),
                 () -> Rotations.of(outerEncoder.getAbsolutePosition().getValueAsDouble()))
-            .withAbsoluteEncoder1Gearing(TurretConstants.GEAR_0_TOOTH_COUNT, TurretConstants.GEAR_1_TOOTH_COUNT)
-            .withAbsoluteEncoder2Gearing(TurretConstants.GEAR_0_TOOTH_COUNT, TurretConstants.GEAR_1_TOOTH_COUNT, TurretConstants.GEAR_2_TOOTH_COUNT)
+            .withAbsoluteEncoder1Gearing(
+                TurretConstants.GEAR_0_TOOTH_COUNT, TurretConstants.GEAR_1_TOOTH_COUNT)
+            .withAbsoluteEncoder2Gearing(
+                TurretConstants.GEAR_0_TOOTH_COUNT,
+                TurretConstants.GEAR_1_TOOTH_COUNT,
+                TurretConstants.GEAR_2_TOOTH_COUNT)
             .withMechanismRange(
                 Rotations.of(TurretConstants.MIN_ROT_DEG / 360),
                 Rotations.of(TurretConstants.MAX_ROT_DEG / 360))
@@ -131,7 +136,9 @@ public class TurretSubsystem extends TalonFXSubsystem {
     }
 
     SmartDashboard.putNumber("Turret Velocity", getVelocity());
-    easyCRT.getAngleOptional().ifPresent(angle -> SmartDashboard.putNumber("Turret Angle", angle.in(Degrees)));
+    easyCRT
+        .getAngleOptional()
+        .ifPresent(angle -> SmartDashboard.putNumber("Turret Angle", angle.in(Degrees)));
     SmartDashboard.putNumber(
         "Turret Inner Encoder Angle",
         Units.rotationsToDegrees(innerEncoder.getAbsolutePosition().getValueAsDouble()));
@@ -157,8 +164,8 @@ public class TurretSubsystem extends TalonFXSubsystem {
     double currentDegrees = current.getDegrees();
 
     // shortest circular difference
-    double delta = normalizeAngle(requestedAngle.getDegrees() - currentDegrees);
-    // Units.radiansToDegrees(MathUtil.angleModulus(requestedAngle.minus(current).getRadians()));
+    double delta = 
+      Units.radiansToDegrees(MathUtil.angleModulus(requestedAngle.minus(current).getRadians()));
 
     // two possible paths
     double pathCW = delta > 0 ? delta - 360 : delta;
@@ -293,5 +300,32 @@ public class TurretSubsystem extends TalonFXSubsystem {
                 AllianceFlipUtil.get(FieldConstants.Hub.hubCenter, FieldConstants.Hub.oppHubCenter),
             robotPose)
         .withName("PointAtHubCenter");
+  }
+
+  public Command aimOntheFlyPosition(
+      Supplier<Translation2d> targetPosition,
+      Supplier<Pose2d> robotPose,
+      Supplier<ChassisSpeeds> robotSpeed) {
+    return run(() -> {
+          Translation2d futurePose =
+              robotPose
+                  .get()
+                  .getTranslation()
+                  .plus(
+                      new Translation2d(
+                              robotSpeed.get().vxMetersPerSecond,
+                              robotSpeed.get().vyMetersPerSecond)
+                          .times(TurretConstants.LATENCY));
+
+          Rotation2d absoluteAngleToTarget =
+              ScreamMath.calculateAngleToPoint(futurePose, targetPosition.get());
+
+          Rotation2d robotRelativeAngle =
+              absoluteAngleToTarget.minus(robotPose.get().getRotation());
+
+          Rotation2d safeTarget = getSafeTargetAngle(robotRelativeAngle);
+          setSetpointMotionMagicPosition(safeTarget.getRotations());
+        })
+        .withName("AimOnTheFly");
   }
 }

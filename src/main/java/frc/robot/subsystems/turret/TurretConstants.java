@@ -68,6 +68,8 @@ public class TurretConstants {
   public static final double OUTER_ENCODER_RATIO = GEAR_2_TOOTH_COUNT / GEAR_0_TOOTH_COUNT;
   public static final double CRT_MATCH_TOLERANCE = 0.01;
 
+  public static final double LATENCY = 0.15; // TODO: Tune this constant
+
   static {
     TURRET_CONFIG.name = "Turret";
 

@@ -8,18 +8,22 @@ import static edu.wpi.first.units.Units.*;
 
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
+import com.teamscreamrobotics.util.AllianceFlipUtil;
 import com.teamscreamrobotics.util.Logger;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.smartdashboard.Mechanism2d;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
+import frc.robot.constants.FieldConstants;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.DrivetrainConstants;
@@ -42,8 +46,8 @@ public class RobotContainer {
           .withDeadband(MaxSpeed * 0.1)
           .withRotationalDeadband(MaxAngularRate * 0.1)
           .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
-  private final SwerveRequest.SwerveDriveBrake brake = new SwerveRequest.SwerveDriveBrake();
-  private final SwerveRequest.PointWheelsAt point = new SwerveRequest.PointWheelsAt();
+  // private final SwerveRequest.SwerveDriveBrake brake = new SwerveRequest.SwerveDriveBrake();
+  // private final SwerveRequest.PointWheelsAt point = new SwerveRequest.PointWheelsAt();
 
   // Request for rotating to a specific angle
   /*
@@ -85,6 +89,33 @@ public class RobotContainer {
     }
 
     return target;
+  }
+
+  public Translation2d getFerryZone() {
+    if (drivetrain.getEstimatedPose().getY() >= FieldConstants.fieldWidth / 2.0) {
+      return AllianceFlipUtil.get(
+          FieldConstants.AllianceZones.leftAllianceZone,
+          FieldConstants.AllianceZones.oppLeftAllianceZone);
+    } else {
+      return AllianceFlipUtil.get(
+          FieldConstants.AllianceZones.rightAllianceZone,
+          FieldConstants.AllianceZones.oppRightAllianceZone);
+    }
+  }
+
+  public Command aimCommand() {
+    return turret.aimOntheFlyPosition(
+        () ->
+            (new Trigger(() -> Dashboard.ferryMode.get()).getAsBoolean()
+                ? getFerryZone()
+                : AllianceFlipUtil.get(
+                    FieldConstants.Hub.hubCenter, FieldConstants.Hub.oppHubCenter)),
+        () -> drivetrain.getEstimatedPose(),
+        () ->
+            new ChassisSpeeds(
+                drivetrain.getState().Speeds.vxMetersPerSecond,
+                drivetrain.getState().Speeds.vyMetersPerSecond,
+                drivetrain.getState().Speeds.omegaRadiansPerSecond));
   }
 
   private double capturedTargetAngle = 0;
@@ -146,7 +177,24 @@ public class RobotContainer {
     //                     new Rotation2d(Units.degreesToRadians(-180))),
     //             true));
 
-    joystick.leftTrigger().whileTrue(turret.pointAtHubCenter(() -> drivetrain.getEstimatedPose()));
+    // joystick.leftTrigger().whileTrue(turret.pointAtHubCenter(() ->
+    // drivetrain.getEstimatedPose()));
+
+    // joystick
+    //     .leftTrigger()
+    //     .whileTrue(
+    //         turret.aimOntheFlyPosition(
+    //             () ->
+    //                 AllianceFlipUtil.get(
+    //                     FieldConstants.Hub.hubCenter, FieldConstants.Hub.oppHubCenter),
+    //             () -> drivetrain.getEstimatedPose(),
+    //             () ->
+    //                 new ChassisSpeeds(
+    //                     drivetrain.getState().Speeds.vxMetersPerSecond,
+    //                     drivetrain.getState().Speeds.vyMetersPerSecond,
+    //                     drivetrain.getState().Speeds.omegaRadiansPerSecond)));
+
+    turret.setDefaultCommand(aimCommand());
 
     // joystick
     //     .rightTrigger()
