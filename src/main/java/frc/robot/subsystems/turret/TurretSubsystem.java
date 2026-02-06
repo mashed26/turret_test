@@ -153,19 +153,13 @@ public class TurretSubsystem extends TalonFXSubsystem {
     return angle >= TurretConstants.MIN_ROT_DEG && angle <= TurretConstants.MAX_ROT_DEG;
   }
 
-  private double normalizeAngle(double angle) {
-    while (angle > 180) angle -= 360;
-    while (angle < -180) angle += 360;
-    return angle;
-  }
-
   private Rotation2d getSafeTargetAngle(Rotation2d requestedAngle) {
     Rotation2d current = getAngle();
     double currentDegrees = current.getDegrees();
 
     // shortest circular difference
-    double delta = 
-      Units.radiansToDegrees(MathUtil.angleModulus(requestedAngle.minus(current).getRadians()));
+    double delta =
+        Units.radiansToDegrees(MathUtil.angleModulus(requestedAngle.minus(current).getRadians()));
 
     // two possible paths
     double pathCW = delta > 0 ? delta - 360 : delta;
