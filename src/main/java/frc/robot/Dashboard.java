@@ -19,6 +19,7 @@ public class Dashboard {
   // public static DashboardBoolean disableCoralRequirement;
   public static DashboardBoolean disableAllVisionUpdates;
   public static DashboardBoolean useGlobalEstimateForAutoAlign;
+  public static DashboardBoolean ferryMode;
 
   // public static DashboardNumber autoScoreDistance;
 
@@ -34,6 +35,8 @@ public class Dashboard {
     disableAllVisionUpdates = new DashboardBoolean(vision, "Disable All Vision Updates", false);
     useGlobalEstimateForAutoAlign =
         new DashboardBoolean(vision, "Use Global Estimate For Auto Align", false);
+    ferryMode = new DashboardBoolean(overrides, "Ferry Mode", false);
+
     // autoScoreDistance = new DashboardNumber(overrides, "Auto Score Distance", 0.03);
   }
 }

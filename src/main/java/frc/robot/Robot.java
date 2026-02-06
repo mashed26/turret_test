@@ -18,6 +18,7 @@ public class Robot extends TimedRobot {
 
   public Robot() {
     m_robotContainer = new RobotContainer();
+    Dashboard.initialize();
 
     Logger.setOptions(
         new DogLogOptions()

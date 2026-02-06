@@ -91,6 +91,22 @@ public class FieldConstants {
     public static final double leftTrenchOpenStart = fieldWidth;
   }
 
+  public static class AllianceZones {
+    public static final Translation2d centerAllianceZone =
+        new Translation2d(fieldLength / 8.0, fieldWidth / 2.0);
+    public static final Translation2d oppCenterAllianceZone =
+        new Translation2d((fieldLength * 7) / 8.0, fieldWidth / 2.0);
+
+    public static final Translation2d leftAllianceZone =
+        new Translation2d(fieldLength / 8.0, fieldWidth * 3.0 / 4.0);
+    public static final Translation2d oppLeftAllianceZone =
+        new Translation2d((fieldLength * 7) / 8.0, fieldWidth * 3.0 / 4.0);
+    public static final Translation2d rightAllianceZone =
+        new Translation2d(fieldLength / 8.0, fieldWidth / 4.0);
+    public static final Translation2d oppRightAllianceZone =
+        new Translation2d((fieldLength * 7) / 8.0, fieldWidth / 4.0);
+  }
+
   /** Hub related constants */
   public static class Hub {
 
