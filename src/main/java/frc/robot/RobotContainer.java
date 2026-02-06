@@ -8,7 +8,6 @@ import static edu.wpi.first.units.Units.*;
 
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
-import com.teamscreamrobotics.dashboard.MechanismVisualizer;
 import com.teamscreamrobotics.util.Logger;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
@@ -147,12 +146,12 @@ public class RobotContainer {
     //                     new Rotation2d(Units.degreesToRadians(-180))),
     //             true));
 
-    joystick.a().whileTrue(turret.pointAtHubCenter(() -> drivetrain.getEstimatedPose()));
+    joystick.leftTrigger().whileTrue(turret.pointAtHubCenter(() -> drivetrain.getEstimatedPose()));
 
-    joystick
-        .rightBumper()
-        .whileTrue(
-            turret.moveToAngleCommandFR(Rotation2d.kCW_90deg, () -> drivetrain.getHeading()));
+    // joystick
+    //     .rightTrigger()
+    //     .whileTrue(
+    //         turret.moveToAngleCommandFR(Rotation2d.kCW_90deg, () -> drivetrain.getHeading()));
 
     joystick
         .y()
@@ -181,7 +180,7 @@ public class RobotContainer {
 
     joystick
         .rightBumper()
-        .whileTrue(turret.applyVoltageCommand(() -> (-joystick.getRightY() * 12.0)));
+        .whileTrue(turret.applyVoltageCommand(() -> (-joystick.getRightY() * 2.0)));
 
     // POV controls for incremental angle adjustment
     joystick.povUp().onTrue(Commands.runOnce(() -> targetDegrees += 10));

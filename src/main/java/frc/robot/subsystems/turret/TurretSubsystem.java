@@ -1,5 +1,7 @@
 package frc.robot.subsystems.turret;
 
+import static edu.wpi.first.units.Units.Degrees;
+import static edu.wpi.first.units.Units.Rotations;
 import static edu.wpi.first.units.Units.Volts;
 
 import com.ctre.phoenix6.SignalLogger;
@@ -25,10 +27,13 @@ import frc.robot.Robot;
 import frc.robot.SimConstants;
 import frc.robot.constants.FieldConstants;
 import java.util.function.Supplier;
+import yams.units.EasyCRT;
+import yams.units.EasyCRTConfig;
 
 public class TurretSubsystem extends TalonFXSubsystem {
   private final CANcoder innerEncoder;
   private final CANcoder outerEncoder;
+  private final EasyCRT easyCRT;
 
   private final Ligament turretTwo =
       new Ligament()
@@ -60,6 +65,21 @@ public class TurretSubsystem extends TalonFXSubsystem {
 
     innerEncoder = new CANcoder(TurretConstants.CAN_INNER_ID);
     outerEncoder = new CANcoder(TurretConstants.CAN_OUTER_ID);
+
+    EasyCRTConfig easyCRTConfig =
+        new EasyCRTConfig(
+                () -> Rotations.of(innerEncoder.getAbsolutePosition().getValueAsDouble()),
+                () -> Rotations.of(outerEncoder.getAbsolutePosition().getValueAsDouble()))
+            .withAbsoluteEncoder1Gearing(TurretConstants.GEAR_0_TOOTH_COUNT, TurretConstants.GEAR_1_TOOTH_COUNT)
+            .withAbsoluteEncoder2Gearing(TurretConstants.GEAR_0_TOOTH_COUNT, TurretConstants.GEAR_1_TOOTH_COUNT, TurretConstants.GEAR_2_TOOTH_COUNT)
+            .withMechanismRange(
+                Rotations.of(TurretConstants.MIN_ROT_DEG / 360),
+                Rotations.of(TurretConstants.MAX_ROT_DEG / 360))
+            .withMatchTolerance(Rotations.of(TurretConstants.CRT_MATCH_TOLERANCE))
+            .withAbsoluteEncoderOffsets(Rotations.of(0.0), Rotations.of(0.0));
+
+    easyCRT = new EasyCRT(easyCRTConfig);
+
     // Initialize motor controller
     robotRoot.append(turret);
 
@@ -80,11 +100,30 @@ public class TurretSubsystem extends TalonFXSubsystem {
                 volts -> master.setVoltage(volts.in(Volts)), // Apply voltage to the motor
                 null,
                 this));
+
+    easyCRT
+        .getAngleOptional()
+        .ifPresentOrElse(
+            angle -> {
+              resetPosition(angle.in(Rotations));
+              System.out.println(
+                  "Turret initialized with CRT angle: "
+                      + (angle.in(Rotations) * 360.0)
+                      + " degrees");
+            },
+            () -> {
+              System.err.println(
+                  "WARNING: CRT failed to resolve turret angle! Status: "
+                      + easyCRT.getLastStatus());
+              // Fallback to old method if needed
+              resetPosition(0.0);
+            });
   }
 
   /** Update simulation and telemetry. */
   @Override
   public void periodic() {
+    super.periodic();
     if (Robot.isSimulation()) {
       turret.setAngle(getAngle().getDegrees());
 
@@ -92,11 +131,7 @@ public class TurretSubsystem extends TalonFXSubsystem {
     }
 
     SmartDashboard.putNumber("Turret Velocity", getVelocity());
-    SmartDashboard.putNumber(
-        "Turret Angle",
-        calculateTurretAngleFromCANCoderDegrees(
-            Units.rotationsToDegrees(innerEncoder.getAbsolutePosition().getValueAsDouble()),
-            Units.rotationsToDegrees(outerEncoder.getAbsolutePosition().getValueAsDouble())));
+    easyCRT.getAngleOptional().ifPresent(angle -> SmartDashboard.putNumber("Turret Angle", angle.in(Degrees)));
     SmartDashboard.putNumber(
         "Turret Inner Encoder Angle",
         Units.rotationsToDegrees(innerEncoder.getAbsolutePosition().getValueAsDouble()));
@@ -105,51 +140,16 @@ public class TurretSubsystem extends TalonFXSubsystem {
         Units.rotationsToDegrees(outerEncoder.getAbsolutePosition().getValueAsDouble()));
   }
 
-  private double lastTurretAngle = 0.0;
-
-  public double calculateTurretAngleFromCANCoderDegrees(double e1, double e2) {
-    double difference = e2 - e1;
-
-    if (difference > 250) {
-      difference -= 360;
-    }
-    if (difference < -250) {
-      difference += 360;
-    }
-    difference *= TurretConstants.SLOPE;
-
-    double e1Rotations =
-        (difference * TurretConstants.GEAR_0_TOOTH_COUNT / TurretConstants.GEAR_1_TOOTH_COUNT)
-            / 360.0;
-    double e1RotationsFloored = Math.floor(e1Rotations);
-    double turretAngle =
-        (e1RotationsFloored * 360.0 + e1)
-            * (TurretConstants.GEAR_1_TOOTH_COUNT / TurretConstants.GEAR_0_TOOTH_COUNT);
-
-    double rotation =
-        (TurretConstants.GEAR_1_TOOTH_COUNT / TurretConstants.GEAR_0_TOOTH_COUNT) * 360.0;
-
-    double a0 = turretAngle;
-    double aPlus = turretAngle + rotation;
-    double aMinus = turretAngle - rotation;
-
-    double error0 = Math.abs(a0 - lastTurretAngle);
-    double errorPlus = Math.abs(aPlus - lastTurretAngle);
-    double errorMinus = Math.abs(aMinus - lastTurretAngle);
-
-    if (errorPlus < error0 && errorPlus < errorMinus) {
-      turretAngle = aPlus;
-    } else if (errorMinus < error0) {
-      turretAngle = aMinus;
-    }
-    lastTurretAngle = turretAngle;
-    return turretAngle;
-  }
-
   // Does the actual check to ensure that angle is within bounds
   // and will not damage any parts of the turret.
   private boolean isWithinLimits(double angle) {
     return angle >= TurretConstants.MIN_ROT_DEG && angle <= TurretConstants.MAX_ROT_DEG;
+  }
+
+  private double normalizeAngle(double angle) {
+    while (angle > 180) angle -= 360;
+    while (angle < -180) angle += 360;
+    return angle;
   }
 
   private Rotation2d getSafeTargetAngle(Rotation2d requestedAngle) {
@@ -157,8 +157,8 @@ public class TurretSubsystem extends TalonFXSubsystem {
     double currentDegrees = current.getDegrees();
 
     // shortest circular difference
-    double delta =
-        Units.radiansToDegrees(MathUtil.angleModulus(requestedAngle.minus(current).getRadians()));
+    double delta = normalizeAngle(requestedAngle.getDegrees() - currentDegrees);
+    // Units.radiansToDegrees(MathUtil.angleModulus(requestedAngle.minus(current).getRadians()));
 
     // two possible paths
     double pathCW = delta > 0 ? delta - 360 : delta;
