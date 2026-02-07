@@ -19,7 +19,7 @@ public class IntakeConstants {
     ROLLERS_CONFIG.logTelemetry = false;
 
     ROLLERS_CONFIG.masterConstants =
-        new TalonFXConstants(new CANDevice(11), InvertedValue.Clockwise_Positive);
+        new TalonFXConstants(new CANDevice(9), InvertedValue.CounterClockwise_Positive);
 
     ROLLERS_CONFIG.enableSupplyCurrentLimit = true;
     ROLLERS_CONFIG.supplyCurrentLimit = 20;

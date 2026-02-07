@@ -311,11 +311,22 @@ public class TurretSubsystem extends TalonFXSubsystem {
                               robotSpeed.get().vyMetersPerSecond)
                           .times(TurretConstants.LATENCY));
 
-          Rotation2d absoluteAngleToTarget =
-              ScreamMath.calculateAngleToPoint(futurePose, targetPosition.get());
+          Translation2d targetVc = targetPosition.get().minus(futurePose);
+          double distance = targetVc.getNorm();
+
+          double idealHorizontalSpeed = 1.0;
+
+          Translation2d robotVelVec = new Translation2d(robotSpeed.get().vxMetersPerSecond, robotSpeed.get().vyMetersPerSecond);
+
+          Translation2d shotVec = targetVc.div(distance).times(idealHorizontalSpeed).minus(robotVelVec);
+
+          Rotation2d turretAngle = shotVec.getAngle();
+
+          // Rotation2d absoluteAngleToTarget =
+          //     ScreamMath.calculateAngleToPoint(futurePose, );
 
           Rotation2d robotRelativeAngle =
-              absoluteAngleToTarget.minus(robotPose.get().getRotation());
+              turretAngle.minus(robotPose.get().getRotation());
 
           Rotation2d safeTarget = getSafeTargetAngle(robotRelativeAngle);
           setSetpointMotionMagicPosition(safeTarget.getRotations());

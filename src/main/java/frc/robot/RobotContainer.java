@@ -21,16 +21,20 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
-import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 import frc.robot.constants.FieldConstants;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.DrivetrainConstants;
+import frc.robot.subsystems.intake.IntakeConstants;
+import frc.robot.subsystems.intake.IntakeRollers;
+import frc.robot.subsystems.intake.IntakeRollers.IntakeRollersGoal;
 import frc.robot.subsystems.turret.TurretConstants;
 import frc.robot.subsystems.turret.TurretSubsystem;
 import frc.robot.subsystems.vision.Vision;
 import frc.robot.subsystems.vision.VisionManager;
+
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import lombok.Getter;
 
@@ -63,6 +67,8 @@ public class RobotContainer {
   public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
   public final TurretSubsystem turret = new TurretSubsystem(TurretConstants.TURRET_CONFIG);
   public final Vision vision = new Vision(() -> drivetrain.getState().Pose);
+
+  public final IntakeRollers rollers = new IntakeRollers(IntakeConstants.ROLLERS_CONFIG);
 
   @Getter private final Subsystems subsystems = new Subsystems(drivetrain);
   @Getter private final VisionManager visionManager = new VisionManager(drivetrain);
@@ -103,10 +109,18 @@ public class RobotContainer {
     }
   }
 
+  public BooleanSupplier inAllianceZone() {
+    if (drivetrain.getEstimatedPose().getX() >= AllianceFlipUtil.get(FieldConstants.fieldLength /4, (FieldConstants.fieldLength *3) / 4)) {
+      return () -> false;
+    } else {
+      return () -> true;
+    }
+  }
+
   public Command aimCommand() {
     return turret.aimOntheFlyPosition(
         () ->
-            (new Trigger(() -> Dashboard.ferryMode.get()).getAsBoolean()
+            (inAllianceZone().getAsBoolean() == false
                 ? getFerryZone()
                 : AllianceFlipUtil.get(
                     FieldConstants.Hub.hubCenter, FieldConstants.Hub.oppHubCenter)),
@@ -262,6 +276,8 @@ public class RobotContainer {
 
     // Reset field-centric heading
     joystick.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
+
+    joystick.leftTrigger().whileTrue(rollers.applyGoalCommand(IntakeRollersGoal.INTAKE)).onFalse(rollers.runOnce(() -> rollers.stop()));
 
     drivetrain.registerTelemetry(logger::telemeterize);
   }
