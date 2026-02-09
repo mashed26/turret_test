@@ -22,21 +22,27 @@ public class TurretConstants {
   public static final double MIN_ROT_DEG = -360.0;
   public static final double MAX_ROT_DEG = 360.0;
 
+  public static final double MAGNITUDE = 0.95;
+
   public static final boolean ENABLE_SOFTWARE_LIMIT = true;
   public static final double FORWARD_SOFTWARE_LIMIT = 0.95;
   public static final double BACKWARD_SOFTWARE_LIMIT = -0.95;
 
   public static final DCMotor DC_MOTOR = DCMotor.getKrakenX60(1);
   public static final int CAN_ID = 8;
-  public static final double kP = 6.9;
+
+  public static final double kP = 20;
   public static final double kI = 0.0;
-  public static final double kD = 0.05;
-  public static final double kS = 0.5;
-  public static final double kV = .1;
+  public static final double kD = 0.0;
+  public static final double kS = 1.0;
+  public static final double kV = 0.0;
   public static final double kA = 0.0;
-  public static final double MAX_VEL = 30.0; // rot/s
-  public static final double MAX_ACCEL = 40.0;
+
+  public static final double MAX_VEL = 50.0; // rot/s
+  public static final double MAX_ACCEL = 800.0;
+
   public static final boolean BRAKE_MODE = true;
+
   public static final boolean ENABLE_STATOR_LIMIT = true;
   public static final int STATOR_CURRENT_LIMIT = 40;
   public static final boolean ENABLE_SUPPLY_LIMIT = true;
@@ -68,7 +74,7 @@ public class TurretConstants {
   public static final double OUTER_ENCODER_RATIO = GEAR_2_TOOTH_COUNT / GEAR_0_TOOTH_COUNT;
   public static final double CRT_MATCH_TOLERANCE = 0.01;
 
-  public static final double LATENCY = 0.15; // TODO: Tune this constant
+  public static final double LATENCY = 0.127; // TODO: Tune this constant
 
   static {
     TURRET_CONFIG.name = "Turret";
@@ -111,11 +117,11 @@ public class TurretConstants {
             .getSlot0Configs(new FeedforwardConstants(kV, kS, 0.0, kA));
 
     INNER_CANCODER_CONFIG.MagnetSensor.withAbsoluteSensorDiscontinuityPoint(1.0);
-    INNER_CANCODER_CONFIG.MagnetSensor.withMagnetOffset(-0.00537109375);
+    INNER_CANCODER_CONFIG.MagnetSensor.withMagnetOffset(-0.52294921875);
     INNER_CANCODER_CONFIG.MagnetSensor.SensorDirection = SensorDirectionValue.Clockwise_Positive;
 
     OUTTER_CODER_CONFIG.MagnetSensor.withAbsoluteSensorDiscontinuityPoint(1.0);
-    OUTTER_CODER_CONFIG.MagnetSensor.withMagnetOffset(-0.924072265625);
+    OUTTER_CODER_CONFIG.MagnetSensor.withMagnetOffset(-0.933349609375);
     OUTTER_CODER_CONFIG.MagnetSensor.SensorDirection =
         SensorDirectionValue.CounterClockwise_Positive;
   }

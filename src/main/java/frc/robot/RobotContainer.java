@@ -26,14 +26,10 @@ import frc.robot.constants.FieldConstants;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.DrivetrainConstants;
-import frc.robot.subsystems.intake.IntakeConstants;
-import frc.robot.subsystems.intake.IntakeRollers;
-import frc.robot.subsystems.intake.IntakeRollers.IntakeRollersGoal;
 import frc.robot.subsystems.turret.TurretConstants;
 import frc.robot.subsystems.turret.TurretSubsystem;
 import frc.robot.subsystems.vision.Vision;
 import frc.robot.subsystems.vision.VisionManager;
-
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import lombok.Getter;
@@ -67,8 +63,6 @@ public class RobotContainer {
   public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
   public final TurretSubsystem turret = new TurretSubsystem(TurretConstants.TURRET_CONFIG);
   public final Vision vision = new Vision(() -> drivetrain.getState().Pose);
-
-  public final IntakeRollers rollers = new IntakeRollers(IntakeConstants.ROLLERS_CONFIG);
 
   @Getter private final Subsystems subsystems = new Subsystems(drivetrain);
   @Getter private final VisionManager visionManager = new VisionManager(drivetrain);
@@ -110,15 +104,23 @@ public class RobotContainer {
   }
 
   public BooleanSupplier inAllianceZone() {
-    if (drivetrain.getEstimatedPose().getX() >= AllianceFlipUtil.get(FieldConstants.fieldLength /4, (FieldConstants.fieldLength *3) / 4)) {
-      return () -> false;
-    } else {
+    if (drivetrain.getEstimatedPose().getX()
+        >= AllianceFlipUtil.get(
+            FieldConstants.fieldLength / 4, (FieldConstants.fieldLength * 3) / 4)) {
       return () -> true;
+    } else {
+      return () -> false;
     }
   }
 
+  // public Rotation2d getCrossedReferencedAngle() {
+  //   double visionAngle =
+  // Units.radiansToDegrees(vision.getRotation(Length.fromInches(MaxAngularRate).getMeters()));
+  //   double
+  // }
+
   public Command aimCommand() {
-    return turret.aimOntheFlyPosition(
+    return turret.aimOnTheFlyPosition(
         () ->
             (inAllianceZone().getAsBoolean() == false
                 ? getFerryZone()
@@ -277,7 +279,7 @@ public class RobotContainer {
     // Reset field-centric heading
     joystick.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
 
-    joystick.leftTrigger().whileTrue(rollers.applyGoalCommand(IntakeRollersGoal.INTAKE)).onFalse(rollers.runOnce(() -> rollers.stop()));
+    // joystick.leftTrigger().whileTrue(rollers.applyGoalCommand(IntakeRollersGoal.INTAKE)).onFalse(rollers.runOnce(() -> rollers.stop()));
 
     drivetrain.registerTelemetry(logger::telemeterize);
   }

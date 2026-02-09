@@ -12,6 +12,7 @@ import com.teamscreamrobotics.data.Length;
 import com.teamscreamrobotics.drivers.TalonFXSubsystem;
 import com.teamscreamrobotics.math.ScreamMath;
 import com.teamscreamrobotics.util.AllianceFlipUtil;
+import com.teamscreamrobotics.util.Logger;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -80,8 +81,7 @@ public class TurretSubsystem extends TalonFXSubsystem {
             .withMechanismRange(
                 Rotations.of(TurretConstants.MIN_ROT_DEG / 360),
                 Rotations.of(TurretConstants.MAX_ROT_DEG / 360))
-            .withMatchTolerance(Rotations.of(TurretConstants.CRT_MATCH_TOLERANCE))
-            .withAbsoluteEncoderOffsets(Rotations.of(0.0), Rotations.of(0.0));
+            .withMatchTolerance(Rotations.of(TurretConstants.CRT_MATCH_TOLERANCE));
 
     easyCRT = new EasyCRT(easyCRTConfig);
 
@@ -135,6 +135,8 @@ public class TurretSubsystem extends TalonFXSubsystem {
       SmartDashboard.putData("turret mech", robotTest);
     }
 
+    Logger.log(logPrefix + "Motor Angle", getAngle().getDegrees());
+
     SmartDashboard.putNumber("Turret Velocity", getVelocity());
     easyCRT
         .getAngleOptional()
@@ -161,7 +163,7 @@ public class TurretSubsystem extends TalonFXSubsystem {
     double delta =
         Units.radiansToDegrees(MathUtil.angleModulus(requestedAngle.minus(current).getRadians()));
 
-    // two possible paths
+    // two possible path
     double pathCW = delta > 0 ? delta - 360 : delta;
     double pathCCW = delta < 0 ? delta + 360 : delta;
 
@@ -206,7 +208,7 @@ public class TurretSubsystem extends TalonFXSubsystem {
     return run(
         () -> {
           Rotation2d safeTarget = getSafeTargetAngle(angle.get());
-          setSetpointMotionMagicPosition(safeTarget.getRotations());
+          setSetpointPosition(safeTarget.getRotations());
         });
   }
 
@@ -257,25 +259,6 @@ public class TurretSubsystem extends TalonFXSubsystem {
             ScreamMath.calculateAngleToPoint(
                 robotPose.get().getTranslation(), targetPosition.get()),
         () -> robotPose.get().getRotation());
-    /* return run(() -> {
-      // Get current robot pose
-      Pose2d robotPose = this.robotPose.get();
-      Translation2d robotTranslation = robotPose.getTranslation();
-      Rotation2d robotHeading = robotPose.getRotation();
-
-      // Calculate the absolute field angle to the target
-      Rotation2d absoluteAngleToTarget = ScreamMath.calculateAngleToPoint(robotTranslation, targetPosition);
-
-      // Calculate the robot-relative angle
-      // This is the angle the turret needs to point relative to the robot's forward direction
-      Rotation2d robotRelativeAngle = absoluteAngleToTarget.minus(robotHeading);
-
-      // Get safe target and set angle
-      double targetAngleDegrees = robotRelativeAngle.getDegrees();
-      double safeTarget = getSafeTargetAngle(targetAngleDegrees);
-      setAngle(safeTarget);
-    })
-    .withName("PointAtFieldPosition"); */
   }
 
   public Command pointAtFieldPosition(Translation2d targetPosition, Supplier<Pose2d> robotPose) {
@@ -296,40 +279,51 @@ public class TurretSubsystem extends TalonFXSubsystem {
         .withName("PointAtHubCenter");
   }
 
-  public Command aimOntheFlyPosition(
+  public Command aimOnTheFlyPosition(
       Supplier<Translation2d> targetPosition,
       Supplier<Pose2d> robotPose,
       Supplier<ChassisSpeeds> robotSpeed) {
     return run(() -> {
+          Translation2d robotVelRobotFrame =
+              new Translation2d(
+                  robotSpeed.get().vxMetersPerSecond, robotSpeed.get().vyMetersPerSecond);
+
+          Translation2d robotVelFieldFrame =
+              robotVelRobotFrame.rotateBy(robotPose.get().getRotation());
+
           Translation2d futurePose =
               robotPose
                   .get()
                   .getTranslation()
-                  .plus(
-                      new Translation2d(
-                              robotSpeed.get().vxMetersPerSecond,
-                              robotSpeed.get().vyMetersPerSecond)
-                          .times(TurretConstants.LATENCY));
+                  .plus(robotVelFieldFrame.times(TurretConstants.LATENCY));
 
           Translation2d targetVc = targetPosition.get().minus(futurePose);
           double distance = targetVc.getNorm();
 
           double idealHorizontalSpeed = 1.0;
 
-          Translation2d robotVelVec = new Translation2d(robotSpeed.get().vxMetersPerSecond, robotSpeed.get().vyMetersPerSecond);
+          Rotation2d turretAngle;
 
-          Translation2d shotVec = targetVc.div(distance).times(idealHorizontalSpeed).minus(robotVelVec);
+          double translationalSpeed = robotVelFieldFrame.getNorm();
+          if (translationalSpeed < 0.05) {
+            turretAngle = targetVc.getAngle();
+          } else {
 
-          Rotation2d turretAngle = shotVec.getAngle();
+            Translation2d shotVec =
+                targetVc.div(distance).times(idealHorizontalSpeed).minus(robotVelFieldFrame);
+            turretAngle = shotVec.getAngle();
+          }
 
-          // Rotation2d absoluteAngleToTarget =
-          //     ScreamMath.calculateAngleToPoint(futurePose, );
+          Rotation2d robotRelativeAngle = turretAngle.minus(robotPose.get().getRotation());
 
-          Rotation2d robotRelativeAngle =
-              turretAngle.minus(robotPose.get().getRotation());
-
-          Rotation2d safeTarget = getSafeTargetAngle(robotRelativeAngle);
-          setSetpointMotionMagicPosition(safeTarget.getRotations());
+          Rotation2d safeTarget =
+              getSafeTargetAngle(
+                  robotRelativeAngle
+                      .times(TurretConstants.MAGNITUDE)
+                      .minus(
+                          (Rotation2d.fromRadians(robotSpeed.get().omegaRadiansPerSecond)
+                              .times(0.15))));
+          setSetpointPosition(safeTarget.getRotations());
         })
         .withName("AimOnTheFly");
   }

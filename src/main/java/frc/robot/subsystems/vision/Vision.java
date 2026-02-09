@@ -17,7 +17,7 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import java.util.function.Supplier;
 
 public class Vision extends SubsystemBase {
-  private final Limelight limelight;
+  private final Limelight TURRET_LIMELIGHT;
   private final int TARGET_APRILTAG_ID = 9;
 
   // Camera position relative to turret base
@@ -32,23 +32,39 @@ public class Vision extends SubsystemBase {
 
   public Vision(Supplier<Pose2d> robotPoseSupplier) {
     // Initialize Limelight with name and relative position
-    limelight = new Limelight("limelight-turret", CAMERA_RELATIVE_POSITION);
+    TURRET_LIMELIGHT = new Limelight("limelight-turret", CAMERA_RELATIVE_POSITION);
     this.robotPoseSupplier = robotPoseSupplier;
 
     // Set the priority tag to our target AprilTag
-    LimelightVision.setPriorityTagID(TARGET_APRILTAG_ID, limelight);
+    LimelightVision.setPriorityTagID(TARGET_APRILTAG_ID, TURRET_LIMELIGHT);
   }
 
   @Override
   public void periodic() {
     // No need to manually fetch results - LimelightHelpers handles this
     if (DriverStation.isDisabled()) {
-      LimelightVision.setThrottle(200, limelight);
+      LimelightVision.setThrottle(200, TURRET_LIMELIGHT);
     } else {
-      LimelightVision.setThrottle(0, limelight);
+      LimelightVision.setThrottle(0, TURRET_LIMELIGHT);
     }
 
     SmartDashboard.putNumber("angle", getDesiredAngle().getDegrees());
+  }
+
+  public double getDistance(double targetHeight) {
+    Rotation2d angleToGoal =
+        Rotation2d.fromDegrees(VisionConstants.LIMELIGHT_MOUNT_ANGLE)
+            .plus(Rotation2d.fromDegrees(LimelightHelpers.getTX(TURRET_LIMELIGHT.name())));
+    double distance = (targetHeight - VisionConstants.LIMELIGHT_HEIGHT) / angleToGoal.getTan();
+    return distance;
+  }
+
+  public double getRotation(double targetHeight) {
+    double cameraLensHorizontalOffset =
+        LimelightHelpers.getTX(TURRET_LIMELIGHT.name()) / getDistance(targetHeight);
+    double realHorizontalOffset = Math.atan(cameraLensHorizontalOffset / getDistance(targetHeight));
+    double rotationError = Math.atan(realHorizontalOffset / getDistance(targetHeight));
+    return rotationError;
   }
 
   public void setTurretAngle(Rotation2d angle) {
@@ -60,7 +76,7 @@ public class Vision extends SubsystemBase {
   }
 
   public boolean hasTarget() {
-    return LimelightVision.getTV(limelight);
+    return LimelightVision.getTV(TURRET_LIMELIGHT);
   }
 
   /**
@@ -73,7 +89,8 @@ public class Vision extends SubsystemBase {
     }
 
     // Get target position in robot space
-    Pose3d targetPoseRobotSpace = LimelightHelpers.getTargetPose3d_RobotSpace(limelight.name());
+    Pose3d targetPoseRobotSpace =
+        LimelightHelpers.getTargetPose3d_RobotSpace(TURRET_LIMELIGHT.name());
 
     // Project to 2D
     Translation2d targetPositionRobotSpace =
@@ -98,7 +115,8 @@ public class Vision extends SubsystemBase {
     Pose2d robotPose = robotPoseSupplier.get();
 
     // Get target pose in robot space from Limelight
-    Pose3d targetPoseRobotSpace = LimelightHelpers.getTargetPose3d_RobotSpace(limelight.name());
+    Pose3d targetPoseRobotSpace =
+        LimelightHelpers.getTargetPose3d_RobotSpace(TURRET_LIMELIGHT.name());
 
     // Convert to 2D and transform to field coordinates
     Translation2d targetTranslation =
@@ -142,7 +160,7 @@ public class Vision extends SubsystemBase {
     }
 
     // Get 3D position of target in robot space
-    Pose3d targetPose = LimelightHelpers.getTargetPose3d_RobotSpace(limelight.name());
+    Pose3d targetPose = LimelightHelpers.getTargetPose3d_RobotSpace(TURRET_LIMELIGHT.name());
     Translation3d targetPos = targetPose.getTranslation();
 
     // Calculate 2D distance (ignoring vertical component)
@@ -157,7 +175,7 @@ public class Vision extends SubsystemBase {
       return -1.0;
     }
 
-    return LimelightVision.get3D_DistanceToTarget(limelight).getMeters();
+    return LimelightVision.get3D_DistanceToTarget(TURRET_LIMELIGHT).getMeters();
   }
 
   /** Get the angle from the robot to the target (robot-relative) */
@@ -171,7 +189,7 @@ public class Vision extends SubsystemBase {
     }
 
     // Get target position in robot space
-    Pose3d targetPose = LimelightHelpers.getTargetPose3d_RobotSpace(limelight.name());
+    Pose3d targetPose = LimelightHelpers.getTargetPose3d_RobotSpace(TURRET_LIMELIGHT.name());
 
     return new Translation2d(targetPose.getX(), targetPose.getY());
   }
@@ -180,14 +198,14 @@ public class Vision extends SubsystemBase {
     if (!hasTarget()) {
       return 0.0;
     }
-    return LimelightVision.getTX(limelight);
+    return LimelightVision.getTX(TURRET_LIMELIGHT);
   }
 
   public double getTargetPitch() {
     if (!hasTarget()) {
       return 0.0;
     }
-    return LimelightVision.getTY(limelight);
+    return LimelightVision.getTY(TURRET_LIMELIGHT);
   }
 
   public String getTrackingInfo() {
@@ -203,28 +221,28 @@ public class Vision extends SubsystemBase {
   /** Get the timestamp of the latest result (useful for latency compensation) */
   public double getLatestTimestamp() {
     // Calculate timestamp by subtracting latency from current time
-    double latencySeconds = LimelightVision.getLatency(limelight) / 1000.0;
+    double latencySeconds = LimelightVision.getLatency(TURRET_LIMELIGHT) / 1000.0;
     return Timer.getFPGATimestamp() - latencySeconds;
   }
 
   /** Check how old the latest data is (in seconds) */
   public double getDataAge() {
     // Limelight latency represents how old the data is
-    return LimelightVision.getLatency(limelight) / 1000.0;
+    return LimelightVision.getLatency(TURRET_LIMELIGHT) / 1000.0;
   }
 
   /** Set LED mode for the Limelight */
   public void setLEDMode(LimelightVision.LEDMode mode) {
-    LimelightVision.setLEDMode(mode, limelight);
+    LimelightVision.setLEDMode(mode, TURRET_LIMELIGHT);
   }
 
   /** Set the pipeline index */
   public void setPipeline(int index) {
-    LimelightVision.setPipeline(index, limelight);
+    LimelightVision.setPipeline(index, TURRET_LIMELIGHT);
   }
 
   /** Get the current pipeline index */
   public int getCurrentPipeline() {
-    return LimelightVision.getCurrentPipeline(limelight);
+    return LimelightVision.getCurrentPipeline(TURRET_LIMELIGHT);
   }
 }
